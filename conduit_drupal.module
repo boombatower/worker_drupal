@@ -1,0 +1,16 @@
+<?php
+/**
+ * @file
+ * Drupal integration for conduit.
+ *
+ * @author Jimmy Berry ("boombatower", http://drupal.org/user/214218)
+ */
+
+/**
+ * Implements hook_ctools_plugin_directory().
+ */
+function conduit_drupal_ctools_plugin_directory($module, $plugin) {
+  if (($module == 'worker' && $plugin == 'worker') || ($module == 'conduit' && $plugin == 'server')) {
+    return 'plugins/' . $plugin;
+  }
+}

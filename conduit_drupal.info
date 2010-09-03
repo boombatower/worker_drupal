@@ -1,0 +1,10 @@
+name = Conduit Drupal
+description = Drupal integration for conduit.
+package = Conduit
+core = 7.x
+files[] = conduit.module
+
+files[] = includes/plugins.inc
+files[] = includes/queue.inc
+
+files[] = plugins/server/script.inc
