@@ -14,19 +14,3 @@ function conduit_drupal_ctools_plugin_directory($module, $plugin) {
     return 'plugins/' . $plugin;
   }
 }
-
-/**
- * Install Drupal on the primary database and ensure that it functions.
- *
- * This step is common to a number of the Drupal plugins and thus resides in
- * a shared location.
- *
- * @param $properties
- *   Associative array of properties defining the job.
- * @return
- *   TRUE if successful, otherwise FALSE.
- */
-function conduit_drupal_install_perform(array $properties) {
-  worker_log('Install Drupal.');
-  return worker_database('drupal', $properties['database']); // @TODO Perform installation.
-}
