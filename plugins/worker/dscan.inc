@@ -32,6 +32,10 @@ function dscan_perform(array $properties) {
     return FALSE;
   }
 
+  if (!conduit_drupal_install_perform($properties)) {
+    return FALSE;
+  }
+
   return TRUE;
 }
 
@@ -74,6 +78,7 @@ function dscan_syntax(array $properties) {
       return FALSE;
     }
   }
+  chdir(DRUPAL_ROOT);
 
   if (!empty($errors)) {
     worker_log_list('PHP syntax errors found in the following file(s):', array_keys($errors));
