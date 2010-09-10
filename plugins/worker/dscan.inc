@@ -188,6 +188,7 @@ EOT;
   if ($request->code != 200) {
     return FALSE;
   }
+  return TRUE;
 }
 
 /**
