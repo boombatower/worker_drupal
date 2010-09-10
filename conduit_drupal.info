@@ -8,3 +8,5 @@ files[] = includes/plugins.inc
 files[] = includes/queue.inc
 
 files[] = plugins/server/script.inc
+
+dependencies[] = browser
