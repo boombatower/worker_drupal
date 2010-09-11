@@ -39,9 +39,11 @@ function worker_drupal_install(array $properties) {
   chmod(JOB_ROOT . '/sites/default', 0755);
   chmod(JOB_ROOT . '/sites/default/settings.php', 0644);
 
-  if (!$installed) {
+  // If the installation was not a success then $installed will be FALSE or
+  // contain the error message associated with the failure.
+  if ($installed !== TRUE) {
     worker_log('Drupal installation failed.');
-    return FALSE;
+    return $installed;
   }
 
   return TRUE;
@@ -59,7 +61,7 @@ function worker_drupal_install(array $properties) {
  * @param $url
  *   Absolute ULR to job site.
  * @return
- *   TRUE if successful, otherwise FALSE.
+ *   TRUE if successful, otherwise an error message or FALSE.
  */
 function worker_drupal_install_7(array $properties, $url) {
   // Generate array of settings information required for installation and dump
@@ -104,9 +106,10 @@ EOT;
 
   // To compelete the installation the generated file needs to be invoked
   // using the URL through which the site will be accessed.
-  $request = drupal_http_request($url . '/install.conduit.php', array('timeout' => 60));
-  if ($request->code != 200) {
-    return FALSE;
+  $browser = new Browser();
+  $result = $browser->get($url . '/install.conduit.php');
+  if ($result['code'] != 200) {
+    return worker_drupal_install_error($browser);
   }
   return TRUE;
 }
@@ -119,7 +122,7 @@ EOT;
  * @param $url
  *   Absolute ULR to job site.
  * @return
- *   TRUE if successful, otherwise FALSE.
+ *   TRUE if successful, otherwise an error message or FALSE.
  */
 function worker_drupal_install_6(array $properties, $url) {
   $browser = new Browser();
@@ -129,7 +132,7 @@ function worker_drupal_install_6(array $properties, $url) {
   $result = $browser->get("$url/install.php?profile=default&locale=en");
   if ($result['code'] != 200) {
     worker_log('> Failed to start installation process.');
-    return FALSE;
+    return worker_drupal_install_error($browser);
   }
 
   // Step: Database configuration.
@@ -145,7 +148,7 @@ function worker_drupal_install_6(array $properties, $url) {
   $result = $browser->post(NULL, $post, 'Save and continue');
   if ($result['code'] != 302) {
     worker_log('> Failed to submit database information.');
-    return FALSE;
+    return worker_drupal_install_error($browser);
   }
 
   // Step: Site configuration.
@@ -159,9 +162,28 @@ function worker_drupal_install_6(array $properties, $url) {
   $result = $browser->post(NULL, $post, 'Save and continue');
   if ($result['code'] != 200 || !$browser->getPage()->xpath('//h2[text()="Drupal installation complete"]')) {
     worker_log('> Failed to complete site configuration.');
-    return FALSE;
+    return worker_drupal_install_error($browser);
   }
   return TRUE;
+}
+
+/**
+ * Attempt to scrap an error message from the current browser page.
+ *
+ * @param $browser
+ *   Browser class object after performing a request.
+ * @return
+ *   The first error message on the page, otherwise FALSE.
+ */
+function worker_drupal_install_error(Browser $browser) {
+  // Find the first list item in the error messages div.
+  if ($error = current($browser->getPage()->xpath('//div[@class="messages error"]//li'))) {
+    // Remove any HTML tags the message may contain.
+    $error = strip_tags((string) $error->asXML());
+    worker_log('> ' . $error);
+    return $error;
+  }
+  return FALSE;
 }
 
 /**
