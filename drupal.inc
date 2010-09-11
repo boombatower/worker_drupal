@@ -16,7 +16,7 @@
  */
 function worker_drupal_install(array $properties) {
   worker_log('Prepare primary database.');
-  if (!worker_database('drupal', $properties['database'])) {
+  if (!($connection = worker_database('drupal', $properties['database']))) {
     worker_log('Failed to prepare primary database.');
     return FALSE;
   }
@@ -42,8 +42,13 @@ function worker_drupal_install(array $properties) {
   // If the installation was not a success then $installed will be FALSE or
   // contain the error message associated with the failure.
   if ($installed !== TRUE) {
-    worker_log('Drupal installation failed.');
     return $installed;
+  }
+
+  // Since Drupal installation has completed then go ahead and override/set the
+  // specified list of variables.
+  if (!worker_drupal_install_variables($properties['variables'], $connection)) {
+    return 'Failed to set Drupal variable(s).';
   }
 
   return TRUE;
@@ -184,6 +189,64 @@ function worker_drupal_install_error(Browser $browser) {
     return $error;
   }
   return FALSE;
+}
+
+/**
+ * Set an list of Drupal variables.
+ *
+ * @param $variables
+ *   List of Drupal variables.
+ * @param $connection
+ *   Database connection to set the variables in.
+ * @return
+ *   TRUE if successful, otherwise FALSE.
+ */
+function worker_drupal_install_variables(array $variables, $connection) {
+  worker_log('Set Drupal variable(s).');
+  $success = TRUE;
+  foreach ($variables as $name => $value) {
+    // If the variable was not set successfully then log the event and set
+    // success to false, but continue so that if the variable set had an error
+    // for some reason other then database connectivity that may be noticed.
+    if (!worker_drupal_variable_set($name, $value, $connection)) {
+      worker_log('> Failed to set variable ' . $name . '.');
+      $success = FALSE;
+    }
+  }
+  return $success;
+}
+
+/**
+ * Set a Drupal variable.
+ *
+ * @param $name
+ *   Name of the variable.
+ * @param $value
+ *   Value of the variable.
+ * @param $connection
+ *   Database connection to set the variable in.
+ * @return
+ *   TRUE if successful, otherwise FALSE.
+ */
+function worker_drupal_variable_set($name, $value, $connection) {
+  // Clear entire cache to ensure that variable changes are loaded.
+  $connection->delete('cache')->execute();
+
+  // Remove any pre-existing value for the variable.
+  $connection
+    ->delete('variable')
+    ->condition('name', $name)
+    ->execute();
+
+  // Insert the variable and serialize the value. If the return value is zero
+  // then the insert was successful since the variables table has no ID field.
+  return (int) $connection
+    ->insert('variable')
+    ->fields(array(
+      'name' => $name,
+      'value' => serialize($value),
+    ))
+    ->execute() === 0;
 }
 
 /**
