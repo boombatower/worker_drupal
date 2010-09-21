@@ -4,7 +4,6 @@
  * Provide Drupal scan worker plugin.
  *
  * - php syntax
- * - install
  * - list tests
  *
  * @author Jimmy Berry ("boombatower", http://drupal.org/user/214218)
@@ -22,7 +21,8 @@ $plugin = array(
  * @param $properties
  *   Associative array of properties defining the job.
  * @return
- *   Result of the command run.
+ *   Associative array containing the 'type' of result being returned and the
+ *   associated value that goes along with it, either 'errors' or 'classes'.
  */
 function dscan_perform(array $properties) {
   if ($errors = worker_syntax($properties)) {
@@ -37,16 +37,82 @@ function dscan_perform(array $properties) {
     return FALSE;
   }
 
-  // Load common Drupal conduit functions.
-  require drupal_get_path('module', 'conduit_drupal') . '/drupal.inc';
+  // Get the list of test cases.
+  return array(
+    'type' => 'list',
+    'classes' => dscan_list($properties),
+  );
+}
 
-  if (($error = worker_drupal_install($properties)) !== TRUE) {
-    // Encapsulate the error so the tye can be easily determined.
-    return array(
-      'type' => 'install',
-      'error' => $error,
-    );
+/**
+ * Scan test files to get a list of test cases.
+ *
+ * @param $properties
+ *   Associative array of properties defining the job.
+ * @return
+ *   List of test cases.
+ */
+function dscan_list(array $properties) {
+  worker_log('Assemble list of relevant test files.');
+
+  // Since the syntax check has passed at this point we can assume the list of
+  // files will return properly.
+  $files = worker_file_list($properties);
+
+  // Remove all non-test files.
+  foreach ($files as $key => $file) {
+    if (pathinfo($file, PATHINFO_EXTENSION) != 'test') {
+      unset($files[$key]);
+    }
   }
 
-  return TRUE;
+  if ($properties['version'] == 7) {
+    // The files[] listed in the .info file must be respected as Drupal 7 test
+    // harness uses the list to obtain the .test files to scan.
+    // @TODO Implement.
+  }
+
+  worker_log('> Found ' . count($files) . '.');
+
+  // Search the list of test files for classes containing a getInfo() method.
+  $classes = array();
+  foreach ($files as $file) {
+    // Tokenize the file and cycle through the tokens.
+    $tokens = token_get_all(file_get_contents(JOB_ROOT . '/' . $file));
+    while ($token = next($tokens)) {
+      if ($token[0] == T_CLASS) {
+        // Keep track of class names.
+        $class = dscan_list_string($tokens);
+      }
+      else if ($token[0] == T_FUNCTION) {
+        // If a getInfo method is found then store add the class to the list.
+        if (dscan_list_string($tokens) == 'getInfo') {
+          $classes[] = $class;
+        }
+      }
+    }
+  }
+
+  worker_log('Found ' . count($classes) . ' test cases.');
+
+  return $classes;
+}
+
+/**
+ * Get the next string.
+ *
+ * Note that the internal pointer of the passed array will be incramented.
+ *
+ * @param $tokens
+ *   Array of PHP tokens to search for string in.
+ * @return
+ *   The next string found in tokens, otherwise FALSE.
+ */
+function dscan_list_string(&$tokens) {
+  while ($token = next($tokens)) {
+    if ($token[0] == T_STRING) {
+      return $token[1];
+    }
+  }
+  return FALSE;
 }
