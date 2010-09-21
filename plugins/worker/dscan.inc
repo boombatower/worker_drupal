@@ -77,6 +77,9 @@ function dscan_list(array $properties) {
   worker_log('> Found ' . count($files) . '.');
 
   // Search the list of test files for classes containing a getInfo() method.
+  // This method assumes that a class only has a getInfo() method if it is a
+  // proper Drupal test case and that no function named getInfo() exists in the
+  // test file.
   $classes = array();
   foreach ($files as $file) {
     // Tokenize the file and cycle through the tokens.
