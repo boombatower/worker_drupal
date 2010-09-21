@@ -5,7 +5,7 @@ core = 7.x
 files[] = conduit_drupal.module
 files[] = drupal.inc
 
-files[] = plugins/worker/dscan.inc
+files[] = plugins/worker/scan.inc
 
 dependencies[] = worker
 dependencies[] = browser

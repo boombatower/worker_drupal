@@ -11,8 +11,8 @@
 
 $plugin = array(
   'title' => t('Drupal scan'),
-  'description' => t('Provide Drupal scan worker plugin.'),
-  'perform' => 'dscan_perform',
+  'description' => t('Provide Drupal scan worker plugin (ie. php syntax and obtain list of tests).'),
+  'perform' => 'scan_perform',
 );
 
 /**
@@ -26,7 +26,7 @@ $plugin = array(
  *
  * @see worker_perform() for a description of the properties array.
  */
-function dscan_perform(array $properties) {
+function scan_perform(array $properties) {
   if ($errors = worker_syntax($properties)) {
     // Encapsulate the errors so the type can be easily determined.
     return array(
@@ -42,7 +42,7 @@ function dscan_perform(array $properties) {
   // Get the list of test cases.
   return array(
     'type' => 'list',
-    'classes' => dscan_list($properties),
+    'classes' => scan_list($properties),
   );
 }
 
@@ -54,7 +54,7 @@ function dscan_perform(array $properties) {
  * @return
  *   List of test cases.
  */
-function dscan_list(array $properties) {
+function scan_list(array $properties) {
   worker_log('Assemble list of relevant test files.');
 
   // Since the syntax check has passed at this point we can assume the list of
@@ -87,11 +87,11 @@ function dscan_list(array $properties) {
     while ($token = next($tokens)) {
       if ($token[0] == T_CLASS) {
         // Keep track of class names.
-        $class = dscan_list_string($tokens);
+        $class = scan_list_string($tokens);
       }
       else if ($token[0] == T_FUNCTION) {
         // If a getInfo method is found then store add the class to the list.
-        if (dscan_list_string($tokens) == 'getInfo') {
+        if (scan_list_string($tokens) == 'getInfo') {
           $classes[] = $class;
         }
       }
@@ -113,7 +113,7 @@ function dscan_list(array $properties) {
  * @return
  *   The next string found in tokens, otherwise FALSE.
  */
-function dscan_list_string(&$tokens) {
+function scan_list_string(&$tokens) {
   while ($token = next($tokens)) {
     if ($token[0] == T_STRING) {
       return $token[1];
