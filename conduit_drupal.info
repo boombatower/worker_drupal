@@ -1,12 +1,11 @@
 name = Conduit Drupal
-description = Drupal integration for conduit.
+description = Drupal worker integration for conduit.
 package = Conduit
 core = 7.x
-files[] = conduit.module
+files[] = conduit_drupal.module
+files[] = drupal.inc
 
-files[] = includes/plugins.inc
-files[] = includes/queue.inc
+files[] = plugins/worker/dscan.inc
 
-files[] = plugins/server/script.inc
-
+dependencies[] = worker
 dependencies[] = browser

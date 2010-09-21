@@ -13,6 +13,8 @@
  *   Associative array of properties defining the job.
  * @return
  *   TRUE if successful, otherwise FALSE.
+ *
+ * @see worker_perform() for a description of the properties array.
  */
 function worker_drupal_install(array $properties) {
   worker_log('Prepare primary database.');
@@ -67,6 +69,8 @@ function worker_drupal_install(array $properties) {
  *   Absolute ULR to job site.
  * @return
  *   TRUE if successful, otherwise an error message or FALSE.
+ *
+ * @see worker_perform() for a description of the properties array.
  */
 function worker_drupal_install_7(array $properties, $url) {
   // Generate array of settings information required for installation and dump
@@ -128,6 +132,8 @@ EOT;
  *   Absolute ULR to job site.
  * @return
  *   TRUE if successful, otherwise an error message or FALSE.
+ *
+ * @see worker_perform() for a description of the properties array.
  */
 function worker_drupal_install_6(array $properties, $url) {
   $browser = new Browser();

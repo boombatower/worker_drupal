@@ -23,17 +23,19 @@ $plugin = array(
  * @return
  *   Associative array containing the 'type' of result being returned and the
  *   associated value that goes along with it, either 'errors' or 'classes'.
+ *
+ * @see worker_perform() for a description of the properties array.
  */
 function dscan_perform(array $properties) {
   if ($errors = worker_syntax($properties)) {
-    // Encapsulate the errors so the tye can be easily determined.
+    // Encapsulate the errors so the type can be easily determined.
     return array(
       'type' => 'syntax',
       'errors' => $errors,
     );
   }
   elseif ($errors === FALSE) {
-    // An error occured and should be treated a job failure.
+    // An error occurred and should be treated as a job failure.
     return FALSE;
   }
 
