@@ -32,9 +32,8 @@ function worker_drupal_install(array $properties) {
 
   // Invoke either the Drupal 6 installation function ro the Drupal 7 and above
   // installation function and wait until after chmod() before checking result.
-  $url = url('', array('absolute' => TRUE)) . '/job';
   $function = 'worker_drupal_install_' . min($properties['version'], 7);
-  $installed = $function($properties, $url);
+  $installed = $function($properties);
 
   // Ensure that both the default sites directory and settings.php are writable
   // so they can be removed later.
@@ -65,14 +64,12 @@ function worker_drupal_install(array $properties) {
  *
  * @param $properties
  *   Associative array of properties defining the job.
- * @param $url
- *   Absolute ULR to job site.
  * @return
  *   TRUE if successful, otherwise an error message or FALSE.
  *
  * @see worker_perform() for a description of the properties array.
  */
-function worker_drupal_install_7(array $properties, $url) {
+function worker_drupal_install_7(array $properties) {
   // Generate array of settings information required for installation and dump
   // array in installation script template to a file in the root of job site.
   $settings = array(
@@ -105,7 +102,7 @@ function worker_drupal_install_7(array $properties, $url) {
 <?php
 define('MAINTENANCE_MODE', 'install');
 define('DRUPAL_ROOT', getcwd());
-require_once DRUPAL_ROOT . '/includes/install.core.inc';
+require DRUPAL_ROOT . '/includes/install.core.inc';
 $settings = [settings];
 install_drupal($settings);
 
@@ -116,7 +113,7 @@ EOT;
   // To compelete the installation the generated file needs to be invoked
   // using the URL through which the site will be accessed.
   $browser = new Browser();
-  $result = $browser->get($url . '/install.conduit.php');
+  $result = $browser->get(JOB_URL . '/install.conduit.php');
   if ($result['code'] != 200) {
     return worker_drupal_install_error($browser);
   }
@@ -128,19 +125,17 @@ EOT;
  *
  * @param $properties
  *   Associative array of properties defining the job.
- * @param $url
- *   Absolute ULR to job site.
  * @return
  *   TRUE if successful, otherwise an error message or FALSE.
  *
  * @see worker_perform() for a description of the properties array.
  */
-function worker_drupal_install_6(array $properties, $url) {
+function worker_drupal_install_6(array $properties) {
   $browser = new Browser();
 
   // Step: Select an installation profile.
   // Step: Choose language.
-  $result = $browser->get("$url/install.php?profile=default&locale=en");
+  $result = $browser->get(JOB_URL . '/install.php?profile=default&locale=en');
   if ($result['code'] != 200) {
     worker_log('> Failed to start installation process.');
     return worker_drupal_install_error($browser);
@@ -187,12 +182,16 @@ function worker_drupal_install_6(array $properties, $url) {
  *   The first error message on the page, otherwise FALSE.
  */
 function worker_drupal_install_error(Browser $browser) {
-  // Find the first list item in the error messages div.
-  if ($error = current($browser->getPage()->xpath('//div[@class="messages error"]//li'))) {
-    // Remove any HTML tags the message may contain.
-    $error = strip_tags((string) $error->asXML());
-    worker_log('> ' . $error);
-    return $error;
+  // Find the first list item in the error messages div or if only one error
+  // and thus no list then just grab the only message.
+  if ($page = $browser->getPage()) {
+    if (($error = current($page->xpath('//div[@class="messages error"]//li'))) ||
+      ($error = current($page->xpath('//div[@class="messages error"]')))) {
+      // Remove any HTML tags the message may contain.
+      $error = trim(preg_replace('/^Error message/m', '', strip_tags((string) $error->asXML())));
+      worker_log('> ' . $error);
+      return $error;
+    }
   }
   return FALSE;
 }
@@ -263,4 +262,74 @@ function worker_drupal_variable_set($name, $value, $connection) {
  */
 function worker_drupal_password() {
   return drupal_static(__FUNCTION__, mt_rand(1000, 1000000));
+}
+
+/**
+ * Enable the module or modules on the job site.
+ *
+ * @param $modules
+ *   A single module or list of modules.
+ * @param $version
+ *   Drupal core version.
+ * @return
+ *  TRUE if successful, otherwise FALSE.
+ */
+function worker_drupal_module_enable($modules, $version) {
+  // If a single module was specified then create an array.
+  if (!is_array($modules)) {
+    $modules = array($modules);
+  }
+
+  // Login to the job site.
+  $browser = new Browser();
+  $post = array(
+    'name' => 'admin',
+    'pass' => worker_drupal_password(),
+  );
+  $browser->post(JOB_URL . '/user/login', $post, 'Log in');
+
+  // Load the modules page, scan for the appropriate checkboxes, build up a
+  // post array, and submit.
+  $browser->get(JOB_URL . ($version == 6 ? '/admin/build/modules' : '/admin/modules'));
+  $post = array();
+  $found = TRUE;
+  foreach ($modules as $module) {
+    $name = $version == 6 ? 'status[' . $module . ']' : '[' . $module . '][enable]';
+    if ($checkbox = current($browser->getPage()->xpath('//input[contains(@name,"' . $name . '")]'))) {
+      $post[(string) $checkbox['name']] = TRUE;
+    }
+    else {
+      worker_log('Failed to enable ' . $module . '.');
+      $found = FALSE;
+    }
+  }
+  $result = $browser->post(NULL, $post, 'Save configuration');
+  return $found && $result['code'] == 302;
+}
+
+/**
+ * Get the path to a module relative to the JOB_ROOT.
+ *
+ * @param $module
+ *   Name of the module.
+ * @return
+ *   Relative path to the module, otherwise FALSE.
+ */
+function worker_drupal_module_path($module) {
+  $modules = &drupal_static(__FUNCTION__);
+
+  // If the module paths have not been loaded the scan the job directory for
+  // all modules and store the directories in which they are found.
+  if (!$modules) {
+    worker_log('Scan for modules.');
+    foreach (array('modules', 'sites/all', 'sites/default') as $directory) {
+      $files = file_scan_directory(JOB_ROOT . '/' . $directory, '/\.module$/m');
+      foreach ($files as $file) {
+        $modules[$file->name] = str_replace(array(JOB_ROOT . '/', '/' . $file->filename), '', $file->uri);
+      }
+    }
+    worker_log('> Found ' . count($modules) . '.');
+  }
+
+  return !empty($modules[$module]) ? $modules[$module] : FALSE;
 }
