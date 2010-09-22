@@ -44,7 +44,7 @@ function plumber_perform(array $properties) {
     );
   }
 
-  if (!plumbing_run_tests($properties)) {
+  if (!plumbing_plumb($properties)) {
     // Unrecoverable error related to configuration occured.
     return FALSE;
   }
@@ -61,22 +61,28 @@ function plumber_perform(array $properties) {
  *   TRUE if successfully, otherwise FALSE.
  */
 function plumbing_plumb(array $properties) {
-  // Determine the location of the php executable by using the first entry from
-  // whereis and escape the value.
+  // Determine the location of the PHP executable by using the first entry from
+  // whereis.
   if (!(($php = current(worker_execute_output('whereis php'))) && ($php = explode(' ', $php)) && !empty($php[1]))) {
     worker_log('Could not determine the location of the PHP executable.');
     return FALSE;
   }
-  $php = escapeshellarg($php[1]);
 
   // Escape arguments.
   $url = escapeshellarg(JOB_URL);
-  $classes = implode(',', $properties['classes']);
+  $php = escapeshellarg($php[1]);
 
-  // Run tests.
-  worker_log('Run ' . count($properties['classes']) . ' test cases.');
+  // Generate list of commands to run all test cases.
+  $commands = array();
+  $command = "php scripts/run-tests.sh --php $php --url $url --class ";
+  foreach ($properties['classes'] as $class) {
+    $commands[$class] = $command . $class;
+  }
+
+  // Run tests using manual concurrency.
+  worker_log('Run ' . count($properties['classes']) . ' test case(s).');
   worker_chdir();
-  dpm(worker_execute_output("php scripts/run-tests.sh --php $php --url $url --class $classes"));
+  worker_execute_concurrent($commands);
   chdir(DRUPAL_ROOT);
 
   return TRUE;
