@@ -197,7 +197,7 @@ function worker_drupal_install_error(Browser $browser) {
 }
 
 /**
- * Set an list of Drupal variables.
+ * Set a list of Drupal variables.
  *
  * @param $variables
  *   List of Drupal variables.

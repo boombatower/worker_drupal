@@ -45,7 +45,7 @@ function plumber_perform(array $properties) {
   }
 
   if (!plumbing_plumb($properties)) {
-    // Unrecoverable error related to configuration occured.
+    // Unrecoverable error related to configuration occurred.
     return FALSE;
   }
 
@@ -61,8 +61,7 @@ function plumber_perform(array $properties) {
  *   TRUE if successfully, otherwise FALSE.
  */
 function plumbing_plumb(array $properties) {
-  // Determine the location of the PHP executable by using the first entry from
-  // whereis.
+  // Determine the location of the PHP executable from whereis command output.
   if (!(($php = current(worker_execute_output('whereis php'))) && ($php = explode(' ', $php)) && !empty($php[1]))) {
     worker_log('Could not determine the location of the PHP executable.');
     return FALSE;
