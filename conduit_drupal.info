@@ -3,6 +3,7 @@ description = Drupal worker integration for conduit.
 package = Conduit
 core = 7.x
 files[] = conduit_drupal.module
+files[] = conduit_drupal.test
 files[] = drupal.inc
 
 files[] = plugins/worker/plumbing.inc

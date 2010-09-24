@@ -1,0 +1,241 @@
+<?php
+/**
+ * @file
+ * Provide tests of conduit drupal worker functionality.
+ *
+ * @author Jim Berry ("solotandem", http://drupal.org/user/240748)
+ */
+
+/**
+ * Base worker test case.
+ *
+ * Worker plugins are expected to extend this test case and test the
+ * functionality of their worker review.
+ */
+class DrupalWorkerTestCase extends WorkerTestCase { // DrupalUnitTestCase {
+
+  protected function getProperties() {
+    // Set the sample patch url.
+    $patch_url = url('', array('absolute' => TRUE)) . drupal_get_path('module', 'conduit') . '/worker/tests/test-readme.patch';
+
+    // Create the conduit server tracking item.
+    $item = new stdClass();
+    $item->item_id = 32;
+    $item->data = array(
+      'nid' => 57,
+      'vid' => 74,
+      'delta' => 0,
+    );
+
+    // Create the job properties array.
+    $properties = array(
+      'verbose' => FALSE,
+      'database' => 'mysql',
+      'version' => 7,
+      'plugin' => 'scan',
+
+      'path' => array(
+        '',
+      ),
+      'mask' => '/\.(php|inc|install|module|test)$/',
+      'nomask' => '/(\.\.?|CVS)$/',
+
+      'setup' => array(),
+      'variables' => array(),
+      'newline' => 'unix',
+
+      'ssh' => array(
+        array(
+          'key' => $this->SSHKey,
+          'host' => 'github.com',
+          'user' => 'git',
+          'port' => 22,
+        ),
+      ),
+      'vcs' => array(
+        'test' => 'git://git@github.com:boombatower/test.git/master',
+      ),
+      'patch' => array(
+        $patch_url => 'test',
+      ),
+
+      'item' => $item,
+    );
+
+    return $properties;
+  }
+}
+
+/**
+ * Worker scan test case.
+ *
+ * This test will scan the vcs project files per the path, mask and nomask
+ * parameters and return the list of test case classes.
+ */
+class DrupalWorkerScanTestCase extends DrupalWorkerTestCase {
+  public static function getInfo() {
+    return array(
+      'name' => 'Drupal worker scan plugin handling',
+      'description' => 'Ensure that the setting, parsing, and execution of tasks related to properties works properly.',
+      'group' => 'Conduit',
+    );
+  }
+
+  protected function setUp() {
+    sdp(__METHOD__); // Call here to set $path for subsequent calls.
+    parent::setUp('conduit', 'worker', 'conduit_drupal');
+  }
+
+  protected function testScanResults() {
+    worker_include('job');
+    $properties = $this->getProperties();
+    $this->checkScanResults($properties);
+  }
+
+  protected function checkScanResults(array $properties) {
+    // Add php file to test repository on github with test case classes.
+    // Scan the test project.
+    // Confirm the list of classes.
+    $results = worker_perform($properties);
+    sdp($results, '$results');
+    $this->assertNotNull($results, 'Results array is not NULL');
+    $this->assertEqual($results['status'], 'success', 'Result status is success');
+    $this->assertNotNull($results['result']['classes'], 'Scan classes array is not NULL');
+    $this->assertEqual($results['result']['classes'][0], 'SampleOneTestCase', 'Scan class is "SampleOneTestCase"');
+    $this->assertEqual($results['result']['classes'][1], 'SampleTwoTestCase', 'Scan class is "SampleTwoTestCase"');
+  }
+}
+
+/**
+ * Worker plumbing test case.
+ *
+ * This test will be passed a properties array with the list of test case classes
+ * returned by a previously run scan job.
+ */
+class DrupalWorkerPlumbingTestCase extends DrupalWorkerTestCase {
+  public static function getInfo() {
+    return array(
+      'name' => 'Drupal worker plumbing plugin handling',
+      'description' => 'Ensure that the setting, parsing, and execution of tasks related to properties works properly.',
+      'group' => 'Conduit',
+    );
+  }
+
+  protected function setUp() {
+    sdp(__METHOD__); // Call here to set $path for subsequent calls.
+    parent::setUp('conduit', 'worker');
+  }
+
+  protected function testPlumbing() {
+    worker_include('job');
+    $properties = $this->getProperties();
+    $this->checkPlumbing($properties);
+  }
+
+  protected function checkPlumbing(array $properties) {
+    // Review the output of tests run to confirm they ran succesfully.
+    // Is there a log file we can review for the number of assertions and the
+    // number of passes?
+  }
+}
+
+/**
+ * Worker property test case.
+ *
+ * This test will evaluate any Drupal-specific properties.
+ *
+ * @todo This is copied from worker.test and has not been modified.
+ */
+class DrupalWorkerPropertyTestCase extends DrupalWorkerTestCase {
+  public static function getInfo() {
+    return array(
+      'name' => 'Drupal worker property handling',
+      'description' => 'Ensure that the setting, parsing, and execution of tasks related to properties works properly.',
+      'group' => 'Conduit',
+    );
+  }
+
+  protected function setUp() {
+    sdp(__METHOD__); // Call here to set $path for subsequent calls.
+    parent::setUp('conduit', 'worker');
+  }
+
+  protected function testNodeTypes() {
+    worker_include('job');
+    $properties = $this->getProperties();
+    $this->checkDatabase($properties);
+    $this->checkVersion($properties);
+    $this->checkPlugin($properties);
+    $this->checkVerbose($properties);
+    $this->checkScope($properties);
+    $this->checkSetup($properties);
+    $this->checkVariables($properties);
+    $this->checkPatch($properties);
+    $this->checkSSH($properties);
+    $this->checkVCS($properties);
+//     $this->check($properties);
+//     $this->check($properties);
+//     $this->check($properties);
+//     $this->check($properties);
+  }
+
+  protected function checkDatabase(array $properties) {}
+  protected function checkVersion(array $properties) {}
+
+  protected function checkPlugin(array $properties) {
+//     $properties = array(
+//       'database' => 'mysql',
+//       'version' => 7,
+//       'plugin' => 'dscan',
+//     );
+    // Ensure that the job plugin can be loaded.
+    $plugin = worker_plugins_get('worker', $properties['plugin']);
+    $this->assertNotNull($plugin, 'Plugin is not NULL');
+    if ($plugin = worker_plugins_get('worker', $properties['plugin'])) {
+      sdp($plugin, '$plugin');
+      $this->assertEqual($plugin['title'], 'Drupal scan', 'Plugin title is "Drupal scan."');
+    }
+  }
+
+  protected function checkVerbose(array $properties) {
+//     $properties['verbose'] = TRUE;
+    $results = worker_perform($properties);
+    sdp($results, '$results');
+  }
+
+  protected function checkScope(array $properties) {}
+  protected function checkSetup(array $properties) {}
+  protected function checkVariables(array $properties) {}
+
+  protected function checkPatch(array $properties) {
+    $readme = file_get_contents(JOB_ROOT . '/conduit/README');
+    sdp($readme, '$readme');
+    $this->assertEqual($readme, "sample text that has been modified\n", 'Patch was applied to README in conduit directory.');
+  }
+
+  protected function checkSSH(array $properties) {}
+
+  protected function checkVCS(array $properties) {
+    foreach ($properties['vcs'] as $path => $repository) {
+      sdp($path, '$path');
+      $this->assertTrue(is_dir(JOB_ROOT . '/' . $path), "Directory exists for repository to be stored at path '$path.'");
+      switch ($path) {
+        case 'conduit':
+          $module = 'README';
+          break;
+
+        default:
+          // @todo A module file with the same name as the last path element may not always exist.
+          $module = substr($path, strrpos($path, '/')) . '.module';
+          break;
+      }
+      sdp($module, '$module');
+      $this->assertTrue(file_exists(JOB_ROOT . '/' . $path . '/' . $module), "Module file '$module' exists in directory.");
+    }
+  }
+
+//     protected function check(array $properties) {}
+//     protected function check(array $properties) {}
+//     protected function check(array $properties) {}
+//     protected function check(array $properties) {}
+}
