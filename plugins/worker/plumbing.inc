@@ -1,11 +1,15 @@
 <?php
 /**
  * @file
- * 'Provide Drupal plumbing test runner plugin.
+ * Provide Drupal plumbing test runner plugin.
  *
  * - install
  * - run tests
  * - code coverage (later)
+ *
+ * The following Drupal variables are expected to be set as shown.
+ * - simpletest_clear_results: 0
+ * - simpletest_verbose: 0
  *
  * @author Jimmy Berry ("boombatower", http://drupal.org/user/214218)
  */
@@ -13,7 +17,7 @@
 $plugin = array(
   'title' => t('Drupal plumbing'),
   'description' => t('Provide Drupal plumbing test runner plugin.'),
-  'perform' => 'plumber_perform',
+  'perform' => 'plumbing_perform',
 );
 
 /**
@@ -25,7 +29,7 @@ $plugin = array(
  *   Associative array containing the 'type' of result being returned and the
  *   associated value that goes along with it, either 'errors' or 'classes'.
  */
-function plumber_perform(array $properties) {
+function plumbing_perform(array $properties) {
   // Load common Drupal conduit functions.
   require drupal_get_path('module', 'conduit_drupal') . '/drupal.inc';
 
@@ -44,7 +48,7 @@ function plumber_perform(array $properties) {
     );
   }
 
-  if (!plumbing_plumb($properties)) {
+  if (!($log = plumbing_plumb($properties))) {
     // Unrecoverable error related to configuration occurred.
     return FALSE;
   }
@@ -58,7 +62,8 @@ function plumber_perform(array $properties) {
  * @param $properties
  *   Associative array of properties defining the job.
  * @return
- *   TRUE if successfully, otherwise FALSE.
+ *   Log of the length of time each testcase took to complete, otherwise FALSE.
+ * @see worker_execute_concurrent()
  */
 function plumbing_plumb(array $properties) {
   // Determine the location of the PHP executable from whereis command output.
@@ -81,8 +86,8 @@ function plumbing_plumb(array $properties) {
   // Run tests using manual concurrency.
   worker_log('Run ' . count($properties['classes']) . ' test case(s).');
   worker_chdir();
-  worker_execute_concurrent($commands);
+  $log = worker_execute_concurrent($commands);
   chdir(DRUPAL_ROOT);
 
-  return TRUE;
+  return $log;
 }
