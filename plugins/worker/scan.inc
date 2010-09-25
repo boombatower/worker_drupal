@@ -98,7 +98,7 @@ function scan_list(array $properties) {
     }
   }
 
-  worker_log('Found ' . count($classes) . ' test cases.');
+  worker_log('Found ' . count($classes) . ' test case(s).');
 
   return $classes;
 }
