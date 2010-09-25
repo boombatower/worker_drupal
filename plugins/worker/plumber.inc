@@ -1,7 +1,7 @@
 <?php
 /**
  * @file
- * Provide Drupal plumbing test runner plugin.
+ * Provide Drupal plumber test runner plugin.
  *
  * - install
  * - run tests
@@ -15,9 +15,9 @@
  */
 
 $plugin = array(
-  'title' => t('Drupal plumbing'),
-  'description' => t('Provide Drupal plumbing test runner plugin.'),
-  'perform' => 'plumbing_perform',
+  'title' => t('Drupal plumber'),
+  'description' => t('Provide Drupal plumber test runner plugin.'),
+  'perform' => 'plumber_perform',
 );
 
 /**
@@ -29,7 +29,7 @@ $plugin = array(
  *   Associative array containing the 'type' of result being returned and the
  *   associated value that goes along with it, either 'errors' or 'classes'.
  */
-function plumbing_perform(array $properties) {
+function plumber_perform(array $properties) {
   // Load common Drupal conduit functions.
   require drupal_get_path('module', 'conduit_drupal') . '/drupal.inc';
 
@@ -48,7 +48,7 @@ function plumbing_perform(array $properties) {
     );
   }
 
-  if (!($log = plumbing_plumb($properties))) {
+  if (!($log = plumber_plumb($properties))) {
     // Unrecoverable error related to configuration occurred.
     return FALSE;
   }
@@ -65,7 +65,7 @@ function plumbing_perform(array $properties) {
  *   Log of the length of time each testcase took to complete, otherwise FALSE.
  * @see worker_execute_concurrent()
  */
-function plumbing_plumb(array $properties) {
+function plumber_plumb(array $properties) {
   // Determine the location of the PHP executable from whereis command output.
   if (!(($php = current(worker_execute_output('whereis php'))) && ($php = explode(' ', $php)) && !empty($php[1]))) {
     worker_log('Could not determine the location of the PHP executable.');
