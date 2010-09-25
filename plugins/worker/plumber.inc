@@ -66,9 +66,16 @@ function plumber_perform(array $properties) {
     return FALSE;
   }
 
+  // Process the results of the test and parse the test meta data.
   $results = plumber_results($properties);
+  $meta = plumber_meta($properties);
 
-  return TRUE;
+  return array(
+    'type' => 'test',
+    'log' => $log,
+    'results' => $results,
+    'meta' => $meta,
+  );
 }
 
 /**
@@ -81,19 +88,9 @@ function plumber_perform(array $properties) {
  * @see worker_execute_concurrent()
  */
 function plumber_plumb(array $properties) {
-  // Determine the location of the PHP executable from whereis command output.
-  if (!(($php = current(worker_execute_output('whereis php'))) && ($php = explode(' ', $php)) && !empty($php[1]))) {
-    worker_log('Could not determine the location of the PHP executable.');
-    return FALSE;
-  }
-
-  // Escape arguments.
-  $url = escapeshellarg(JOB_URL);
-  $php = escapeshellarg($php[1]);
-
   // Generate list of commands to run all test cases.
   $commands = array();
-  $command = "php scripts/run-tests.sh --php $php --url $url --class ";
+  $command = plumber_script() . ' --class ';
   foreach ($properties['classes'] as $class) {
     $commands[$class] = $command . $class;
   }
@@ -229,4 +226,71 @@ function plumber_results(array $properties) {
     'summaries' => $summaries,
     'results' => array_values($results),
   );
+}
+
+/**
+ * Obtain list of test meta data.
+ *
+ * @param $properties
+ *   Associative array of properties defining the job.
+ * @return
+ *   An associative array keyed by test class and containing keys 'name' and
+ *   'group' as specified in each tests getInfo().
+ */
+function plumber_meta(array $properties) {
+  worker_log('Obtain test meta data.');
+
+  // Cycle through all the lines in --list output and parse the test meta data
+  // in the following format.
+  // Group
+  //  - Some test name (TestCaseClassName)
+  //  - Another test (AnotherClass)
+  worker_chdir();
+  $lines = worker_execute_output(plumber_script() . ' --list');
+  chdir(DRUPAL_ROOT);
+
+  $group = 'Unknown';
+  $info = array();
+  foreach ($lines as $line) {
+    // Check to see if line contains test information.
+    if (!empty($line[1]) && $line[1] == '-') {
+      // Attempt to parse line of test information and only bother to record it
+      // if the meta data is for a relevant test class.
+      if (preg_match('/^ - (?P<name>.*?) \((?P<class>\w+)\)$/m', $line, $match) && in_array($match['class'], $properties['classes'])) {
+        $info[$match['class']] = array(
+          'name' => $match['name'],
+          'group' => $group,
+        );
+      }
+    }
+    else {
+      // If line does not have test information then it can be assumed to have
+      // group information even though first few lines of output will hit this
+      // case since all test lines come after a valid group.
+      $group = $line;
+    }
+  }
+  worker_log('> Found meta data for ' . number_format(count($info)) . ' test class(es).');
+  return $info;
+}
+
+/**
+ * Generate the common part to the run-tests.sh command.
+ *
+ * @return
+ *   Common part, or prefix, to the run-tests.sh command.
+ */
+function plumber_script() {
+  // Determine the location of the PHP executable from whereis command output.
+  if (!(($php = current(worker_execute_output('whereis php'))) && ($php = explode(' ', $php)) && !empty($php[1]))) {
+    worker_log('Could not determine the location of the PHP executable.');
+    return FALSE;
+  }
+
+  // Escape arguments.
+  $url = escapeshellarg(JOB_URL);
+  $php = escapeshellarg($php[1]);
+
+  // Generate required (and general) portion of run-tests.sh command.
+  return "php scripts/run-tests.sh --php $php --url $url";
 }
