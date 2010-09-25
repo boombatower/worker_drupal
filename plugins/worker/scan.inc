@@ -74,7 +74,7 @@ function scan_list(array $properties) {
     // @TODO Implement.
   }
 
-  worker_log('> Found ' . count($files) . '.');
+  worker_log('> Found ' . number_format(count($files)) . '.');
 
   // Search the list of test files for classes containing a getInfo() method.
   // This method assumes that a class only has a getInfo() method if it is a
@@ -98,7 +98,7 @@ function scan_list(array $properties) {
     }
   }
 
-  worker_log('Found ' . count($classes) . ' test case(s).');
+  worker_log('Found ' . number_format(count($classes)) . ' test case(s).');
 
   return $classes;
 }
