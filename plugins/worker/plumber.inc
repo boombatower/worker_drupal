@@ -218,6 +218,16 @@ function plumber_results(array $properties) {
     // incrament amount is greater then the context.
     while ($count >= PLUMBER_INCRAMENT);
   }
+
+  // Cleanup relevant assertions.
+  foreach ($results as &$result) {
+    // Remove useless/client specific keys.
+    unset($result['message_id']);
+    unset($result['test_id']);
+
+    // Make file path relative to job root.
+    $result['file'] = str_replace(JOB_ROOT, '', $result['file']);
+  }
   worker_log('> ' . number_format(count($results)) . ' relevant assertions found.');
 
   // Since the results are not guaranteed, and most likely will not, to contain
