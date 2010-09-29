@@ -12,15 +12,15 @@
  * - simpletest_verbose: 0
  *
  * As noted in the code comment found in plumber_results() the 'context_test'
- * property must be greater than PLUMBER_INCRAMENT.
+ * property must be greater than PLUMBER_INCREMENT.
  *
  * @author Jimmy Berry ("boombatower", http://drupal.org/user/214218)
  */
 
 /**
- * The maximum number of assertion to process at one time.
+ * The maximum number of assertions to process at one time.
  */
-define('PLUMBER_INCRAMENT', 1000);
+define('PLUMBER_INCREMENT', 1000);
 
 /**
  * The maximum number of relevant assertions.
@@ -183,7 +183,7 @@ function plumber_results(array $properties) {
         ->condition('message_id', $message_id, '>')
         ->condition('test_class', $class)
         ->orderBy('message_id')
-        ->range(0, PLUMBER_INCRAMENT)
+        ->range(0, PLUMBER_INCREMENT)
         ->execute()
         ->fetchAllAssoc('message_id', PDO::FETCH_ASSOC);
 
@@ -212,16 +212,16 @@ function plumber_results(array $properties) {
       // may be used multiple times.
       $count = count($assertions);
     }
-    // If the number of assertions returned is the same as or greater then, due
-    // to context from previous loop interation, the incrament amount then
+    // If the number of assertions returned is the same as or greater than the
+    // increment amount, due to context from previous loop interation, then
     // there is a possibility for more assertions to exist. This assumes the
-    // incrament amount is greater then the context.
-    while ($count >= PLUMBER_INCRAMENT);
+    // increment amount is greater then the context.
+    while ($count >= PLUMBER_INCREMENT);
   }
 
   // Cleanup relevant assertions.
   foreach ($results as &$result) {
-    // Remove useless/client specific keys.
+    // Remove useless/client-specific keys.
     unset($result['message_id']);
     unset($result['test_id']);
 
@@ -230,8 +230,8 @@ function plumber_results(array $properties) {
   }
   worker_log('> ' . number_format(count($results)) . ' relevant assertions found.');
 
-  // Since the results are not guaranteed, and most likely will not, to contain
-  // all the assertions for all the tests we need to return the summaries.
+  // Return the summaries as the results are not guaranteed to contain, and most
+  // likely will not contain, all the assertions for all the tests.
   return array(
     'summaries' => $summaries,
     'results' => array_values($results),
