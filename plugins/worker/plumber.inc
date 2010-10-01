@@ -11,7 +11,7 @@
  * - simpletest_clear_results: 0
  * - simpletest_verbose: 0
  *
- * As noted in the code comment found in plumber_results() the 'context_test'
+ * As noted in the code comment found in plumber_results() the 'context'
  * property must be greater than PLUMBER_INCREMENT.
  *
  * @author Jimmy Berry ("boombatower", http://drupal.org/user/214218)
@@ -149,7 +149,7 @@ function plumber_results(array $properties) {
 
   // Calculate the context length ahead of time since it is static. The length
   // includes the amount of context on either side of the relevant assertion.
-  $context_length = $properties['context_test'] * 2 + 1;
+  $context_length = $properties['context'] * 2 + 1;
 
   // Cycle through the classes that are know to have assertions with statuses
   // that are to be included in the results.
@@ -173,7 +173,7 @@ function plumber_results(array $properties) {
         // In case of test cases or loop interations with very few assertions
         // the count may be lower then the context amount in which case the
         // result would be incorrect.
-        $context = min($count, $properties['context_test']);
+        $context = min($count, $properties['context']);
         $assertions = array_slice($assertions, -1 * $context, $context, TRUE);
       }
 
@@ -196,8 +196,8 @@ function plumber_results(array $properties) {
           // assertion multiple time will not result in duplicate entries. In
           // case the assertion is at the beginning of the list we need to
           // ensure the offset parameter to array_splice() is non-negative.
-          $length = $properties['context_test'] > $i ? $context_length - ($properties['context_test'] - $i) : $context_length;
-          $results += array_slice($assertions, max($i - $properties['context_test'], 0), $length, TRUE);
+          $length = $properties['context'] > $i ? $context_length - ($properties['context'] - $i) : $context_length;
+          $results += array_slice($assertions, max($i - $properties['context'], 0), $length, TRUE);
 
           // If the number of relevant assertions has gone over the maximum
           // number allowed then break out of the processing loops.
