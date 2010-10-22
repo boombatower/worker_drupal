@@ -78,7 +78,7 @@ function coder_perform(array $properties) {
         );
       }
       elseif (substr($line, 0, $length) == $path) {
-        $file = substr($line, $length + 1, -1);
+        $file = substr($line, $length + 1, -2);
         $results[$file] = array();
       }
     }
