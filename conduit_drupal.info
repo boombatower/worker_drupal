@@ -9,6 +9,5 @@ files[] = drupal.inc
 files[] = plugins/worker/plumbing.inc
 files[] = plugins/worker/scan.inc
 
-dependencies[] = worker
 dependencies[] = browser
 dependencies[] = coder_review
