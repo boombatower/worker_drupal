@@ -291,15 +291,13 @@ function plumber_meta(array $properties) {
  *   Common part, or prefix, to the run-tests.sh command.
  */
 function plumber_script() {
-  // Determine the location of the PHP executable from whereis command output.
-  if (!(($php = current(worker_execute_output('whereis php'))) && ($php = explode(' ', $php)) && !empty($php[1]))) {
-    worker_log('Could not determine the location of the PHP executable.');
+  if (!($php = worker_php_path())) {
     return FALSE;
   }
 
   // Escape arguments.
   $url = escapeshellarg(JOB_URL);
-  $php = escapeshellarg($php[1]);
+  $php = escapeshellarg($php);
 
   // Generate required (and general) portion of run-tests.sh command.
   return "php scripts/run-tests.sh --php $php --url $url";
