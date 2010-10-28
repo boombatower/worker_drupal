@@ -1,0 +1,14 @@
+name = Worker Drupal
+description = Drupal integration for worker.
+package = Worker
+core = 7.x
+files[] = worker_drupal.module
+files[] = worker_drupal.test
+files[] = worker_drupal.inc
+
+files[] = plugins/worker/coder.inc
+files[] = plugins/worker/plumbing.inc
+files[] = plugins/worker/scan.inc
+
+dependencies[] = browser
+dependencies[] = coder_review

@@ -1,7 +1,7 @@
 <?php
 /**
  * @file
- * Common Drupal conduit functions.
+ * Common functions used by Drupal plugins.
  *
  * @author Jimmy Berry ("boombatower", http://drupal.org/user/214218)
  */
@@ -80,8 +80,8 @@ function worker_drupal_install_7(array $properties) {
     'forms' => array(
       'install_settings_form' => worker_database_info('drupal', $properties['database']),
       'install_configure_form' => array(
-        'site_name' => 'Conduit generated installation',
-        'site_mail' => 'conduit@example.com',
+        'site_name' => 'Worker generated installation',
+        'site_mail' => 'worker@example.com',
         'account' => array(
           'name' => 'admin',
           'mail' => 'admin@example.com',
@@ -108,12 +108,12 @@ install_drupal($settings);
 
 EOT;
   $out = str_replace('[settings]', var_export($settings, TRUE), $out);
-  file_put_contents(JOB_ROOT . '/install.conduit.php', $out);
+  file_put_contents(JOB_ROOT . '/install.worker.php', $out);
 
   // To compelete the installation the generated file needs to be invoked
   // using the URL through which the site will be accessed.
   $browser = new Browser();
-  $result = $browser->get(JOB_URL . '/install.conduit.php');
+  $result = $browser->get(JOB_URL . '/install.worker.php');
   if ($result['code'] != 200) {
     return worker_drupal_install_error($browser);
   }
@@ -160,7 +160,7 @@ function worker_drupal_install_6(array $properties) {
   // Step: Site configuration.
   $post = array();
   $post['site_name'] = 'Conduit generated installation';
-  $post['site_mail'] = 'conduit@example.com';
+  $post['site_mail'] = 'worker@example.com';
   $post['account[name]'] = 'admin';
   $post['account[mail]'] = 'admin@example.com';
   $post['account[pass][pass1]'] = $post['account[pass][pass2]'] = worker_drupal_password();

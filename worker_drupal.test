@@ -1,7 +1,7 @@
 <?php
 /**
  * @file
- * Provide tests of conduit drupal worker functionality.
+ * Provide tests of worker drupal functionality.
  *
  * @author Jim Berry ("solotandem", http://drupal.org/user/240748)
  */
