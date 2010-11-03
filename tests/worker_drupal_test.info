@@ -1,0 +1,7 @@
+name = Worker Drupal Test
+description = Support module for the worker Drupal tests.
+package = Testing
+core = 7.x
+files[] = worker_drupal_test.module
+version = VERSION
+hidden = TRUE
