@@ -23,14 +23,14 @@ function worker_drupal_install(array $properties) {
     return FALSE;
   }
 
-  worker_log('Install Drupal ' . $properties['version'] . '.');
+  worker_log('Begin install of Drupal ' . $properties['version'] . '.');
 
   // Copy the default.settings.php file as settings.php
   $default_settings = JOB_ROOT . '/sites/default/default.settings.php';
   $settings = JOB_ROOT . '/sites/default/settings.php';
   copy($default_settings, $settings);
 
-  // Invoke either the Drupal 6 installation function ro the Drupal 7 and above
+  // Invoke either the Drupal 6 installation function or the Drupal 7 and above
   // installation function and wait until after chmod() before checking result.
   $function = 'worker_drupal_install_' . min($properties['version'], 7);
   $installed = $function($properties);
@@ -43,6 +43,7 @@ function worker_drupal_install(array $properties) {
   // If the installation was not a success then $installed will be FALSE or
   // contain the error message associated with the failure.
   if ($installed !== TRUE) {
+    worker_log('FAILURE: Install of Drupal ' . $properties['version'] . '.');
     return $installed;
   }
 
@@ -52,6 +53,7 @@ function worker_drupal_install(array $properties) {
     return 'Failed to set Drupal variable(s).';
   }
 
+  worker_log('SUCCESS: Install of Drupal ' . $properties['version'] . '.');
   return TRUE;
 }
 
@@ -113,7 +115,10 @@ EOT;
   // To compelete the installation the generated file needs to be invoked
   // using the URL through which the site will be accessed.
   $browser = new Browser();
+  sdp($browser, '$browser');
+  sdp(JOB_URL, 'JOB_URL');
   $result = $browser->get(JOB_URL . '/install.worker.php');
+  sdp($result, '$result');
   if ($result['code'] != 200) {
     return worker_drupal_install_error($browser);
   }
