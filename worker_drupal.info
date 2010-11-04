@@ -12,3 +12,4 @@ files[] = plugins/scan.inc
 
 dependencies[] = browser
 dependencies[] = coder_review
+dependencies[] = worker
