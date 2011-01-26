@@ -12,7 +12,7 @@
  * @param $properties
  *   Associative array of properties defining the job.
  * @return
- *   TRUE if successful, otherwise FALSE.
+ *   TRUE if successful, otherwise FALSE or an error message.
  *
  * @see worker_perform() for a description of the properties array.
  */
@@ -49,8 +49,7 @@ function worker_drupal_install(array $properties) {
   // Since Drupal installation has completed then go ahead and override/set the
   // specified list of variables.
   if (!worker_drupal_install_variables($properties['variables'], $connection)) {
-    worker_log('Failed to set Drupal variable(s).');
-    return FALSE;
+    return 'Failed to set Drupal variable(s).';
   }
 
   return TRUE;

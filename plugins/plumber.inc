@@ -56,10 +56,10 @@ $plugin = array(
  *      "statuses" key.
  *
  * @return
- *   Associative array with the following keys:
+ *   Associative array with the following keys or FALSE:
  *   - type: String indicating the last step performed. Possible values are:
  *       'install', 'enable', or 'test.'
- *   - error: Error message. // @todo Fix the return value to be string or FALSE!!!
+ *   - error: Error message.
  *   - log: Associative array keyed by test class name and containing the length
  *       of time, in seconds, that the task took to complete, otherwise FALSE.
  *   - results: An associative array with the following keys:
@@ -80,11 +80,10 @@ function plumber_perform(array $properties) {
   if (($error = worker_drupal_install($properties)) !== TRUE) {
     return array(
       'type' => 'install',
-      'error' => $error, // @todo Function returns boolean not a string
+      'error' => $error,
     );
   }
 
-  // @todo Why is this necessary? Doesn't run-tests.sh load simpletest?
   worker_log('Enable simpletest.');
   if (!worker_drupal_module_enable('simpletest', $properties['version'])) {
     return array(
