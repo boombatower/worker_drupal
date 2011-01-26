@@ -32,7 +32,7 @@ $plugin = array(
  *   severity, and message. The line key will FALSE if there is no line
  *   associated with the message.
  *
- * @see worker_perform() for a description of the properties array.
+ * @see worker_perform() for a description of other keys in this array.
  */
 function coder_perform(array $properties) {
   // Assemble list of relevant files and append the path reletive to

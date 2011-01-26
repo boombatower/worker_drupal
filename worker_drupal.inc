@@ -50,7 +50,8 @@ function worker_drupal_install(array $properties) {
   // Since Drupal installation has completed then go ahead and override/set the
   // specified list of variables.
   if (!worker_drupal_install_variables($properties['variables'], $connection)) {
-    return 'Failed to set Drupal variable(s).';
+    worker_log('Failed to set Drupal variable(s).');
+    return FALSE;
   }
 
   worker_log('SUCCESS: Install of Drupal ' . $properties['version'] . '.');
@@ -179,7 +180,7 @@ function worker_drupal_install_6(array $properties) {
 }
 
 /**
- * Attempt to scrap an error message from the current browser page.
+ * Attempt to scrape an error message from the current browser page.
  *
  * @param $browser
  *   Browser class object after performing a request.

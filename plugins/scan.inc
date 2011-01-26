@@ -24,7 +24,7 @@ $plugin = array(
  *   Associative array containing the 'type' of result being returned and the
  *   associated value that goes along with it, either 'errors' or 'classes'.
  *
- * @see worker_perform() for a description of the properties array.
+ * @see worker_perform() for a description of other keys in this array.
  */
 function scan_perform(array $properties) {
   if ($errors = worker_syntax($properties)) {
@@ -90,7 +90,7 @@ function scan_list(array $properties) {
         $class = scan_list_string($tokens);
       }
       else if ($token[0] == T_FUNCTION) {
-        // If a getInfo method is found then store add the class to the list.
+        // If a getInfo method is found then add the class to the list.
         if (scan_list_string($tokens) == 'getInfo') {
           $classes[] = $class;
         }
@@ -106,7 +106,7 @@ function scan_list(array $properties) {
 /**
  * Get the next string.
  *
- * Note that the internal pointer of the passed array will be incramented.
+ * Note that the internal pointer of the passed array will be incremented.
  *
  * @param $tokens
  *   Array of PHP tokens to search for string in.

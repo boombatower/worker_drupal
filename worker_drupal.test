@@ -74,7 +74,7 @@ B8Xd6WsjTohYGm1BdpeUUQx7MPbdNv1F6cB0DCTEfel4OklcXlnK
 
   protected function getProperties() {
     // Set the sample patch url.
-    $patch_url = url('', array('absolute' => TRUE)) . drupal_get_path('module', 'conduit') . '/worker/tests/test-readme.patch';
+    $patch_url = url('', array('absolute' => TRUE)) . drupal_get_path('module', 'worker') . '/tests/test-readme.patch';
 
     // Create the conduit server tracking item.
     $item = new stdClass();
@@ -113,7 +113,7 @@ B8Xd6WsjTohYGm1BdpeUUQx7MPbdNv1F6cB0DCTEfel4OklcXlnK
       ),
       'vcs' => array(
         'test' => 'git://git@github.com:boombatower/test.git/master',
-        '' => 'cvs://:pserver:anonymous:anonymous@cvs.drupal.org:/cvs/drupal:drupal:HEAD',
+//         '' => 'cvs://:pserver:anonymous:anonymous@cvs.drupal.org:/cvs/drupal:drupal:HEAD',
       ),
       'patch' => array(
         $patch_url => 'test',
@@ -143,16 +143,27 @@ class DrupalWorkerScanTestCase extends DrupalWorkerTestCase {
 
   protected function setUp() {
     sdp(__METHOD__); // Call here to set $path for subsequent calls.
+    drupal_load('module', 'conduit');
+    drupal_load('module', 'worker');
+    drupal_load('module', 'worker_drupal');
     parent::setUp('conduit', 'worker', 'worker_drupal');
   }
 
-  protected function testScanResults() {
+  protected function testScan() {
     worker_include('job');
     $properties = $this->getProperties();
-    $this->checkScanResults($properties);
+    $this->checkScan($properties);
   }
 
-  protected function checkScanResults(array $properties) {
+  protected function checkScan(array $properties) {
+    // Ensure that the job plugin can be loaded.
+    $plugin = worker_plugins_get('worker', $properties['plugin']);
+    $this->assertNotNull($plugin, 'Plugin is not NULL');
+    if ($plugin /*= worker_plugins_get('worker', $properties['plugin'])*/) {
+      sdp($plugin, '$plugin');
+      $this->assertEqual($plugin['title'], 'Drupal scan', 'Plugin title is "Drupal scan."');
+    }
+
     // Add php file to test repository on github with test case classes.
     // Scan the test project.
     // Confirm the list of classes.
@@ -182,7 +193,14 @@ class DrupalWorkerPlumberTestCase extends DrupalWorkerTestCase {
   }
 
   protected function setUp() {
+    solotandem_debug_clear();
     sdp(__METHOD__); // Call here to set $path for subsequent calls.
+    sdp(variable_get('file_public_path', ''), 'file_public_path after __METHOD__');
+    sdp(file_directory_path(), 'file_directory_path');
+    drupal_load('module', 'conduit');
+    drupal_load('module', 'worker');
+    drupal_load('module', 'worker_drupal');
+    drupal_load('module', 'worker_drupal_test');
     parent::setUp('conduit', 'worker', 'worker_drupal', 'worker_drupal_test');
   }
 
@@ -209,6 +227,8 @@ class DrupalWorkerPlumberTestCase extends DrupalWorkerTestCase {
       'patch' => array(),
     );
     $properties = $extra + $properties;
+    sdp($properties, '$properties');
+    sdp(var_export($properties, TRUE));
 
     $this->checkPlumber($properties);
   }
@@ -217,21 +237,37 @@ class DrupalWorkerPlumberTestCase extends DrupalWorkerTestCase {
     // Ensure that the job plugin can be loaded.
     $plugin = worker_plugins_get('worker', $properties['plugin']);
     $this->assertNotNull($plugin, 'Plugin is not NULL');
-    if ($plugin = worker_plugins_get('worker', $properties['plugin'])) {
+    if ($plugin /*= worker_plugins_get('worker', $properties['plugin'])*/) {
+      sdp($plugin, '$plugin');
       $this->assertEqual($plugin['title'], 'Drupal plumber', 'Plugin title is "Drupal plumber."');
     }
+
+    // Save properties to job.php.
+    file_put_contents(JOB_URL . '/job.php', '<?php $properties = ' . var_export($properties)); // @todo FILE_ROOT?
+    module_load_include('inc', 'worker', 'worker.drush');
+    $command = 'drush wp ' . JOB_URL . '/job.php';
+    // Execute the command and capture the output and status.
+    exec($command, $output, $status);
+    sdp($status, '$status');
+    sdp($output, '$output');
+    return;
 
     // Review the output of tests run to confirm they ran succesfully.
     // Is there a log file we can review for the number of assertions and the
     // number of passes?
     $results = worker_perform($properties); // = plumber_perform($properties);
     $this->assertNotNull($results, 'Results array is not NULL');
+    sdp($results, '$results');
 
     $url = url('', array('absolute' => TRUE)); // This is 'http://conduit.d7x.loc/'
+    sdp($url, '$url');
     // Look at JOB_URL to see if it has the start of the string.
     // If this was a webTestCase, then we could use drupal_get().
-    module_load_include('module', 'conduit_drupal_test');
-    $result = drupal_http_request($url . 'conduit_drupal/test/1/2');
+    module_load_include('module', 'worker_drupal_test');
+    $result = drupal_http_request($url . 'worker_drupal/test/1/2');
+    sdp($result, '$result');
+
+    // sites/conduit.d7x.loc/files/simpletest/266802/job/install.conduit.php
   }
 }
 
@@ -253,10 +289,12 @@ class DrupalWorkerPropertyTestCase extends DrupalWorkerTestCase {
 
   protected function setUp() {
     sdp(__METHOD__); // Call here to set $path for subsequent calls.
+    drupal_load('module', 'conduit');
+    drupal_load('module', 'worker');
     parent::setUp('conduit', 'worker');
   }
 
-  protected function testNodeTypes() {
+  protected function testProperty() {
     worker_include('job');
     $properties = $this->getProperties();
     $this->checkDatabase($properties);
@@ -266,9 +304,9 @@ class DrupalWorkerPropertyTestCase extends DrupalWorkerTestCase {
     $this->checkScope($properties);
     $this->checkSetup($properties);
     $this->checkVariables($properties);
-    $this->checkPatch($properties);
     $this->checkSSH($properties);
     $this->checkVCS($properties);
+    $this->checkPatch($properties);
 //     $this->check($properties);
 //     $this->check($properties);
 //     $this->check($properties);
@@ -303,12 +341,6 @@ class DrupalWorkerPropertyTestCase extends DrupalWorkerTestCase {
   protected function checkSetup(array $properties) {}
   protected function checkVariables(array $properties) {}
 
-  protected function checkPatch(array $properties) {
-    $readme = file_get_contents(JOB_ROOT . '/conduit/README');
-    sdp($readme, '$readme');
-    $this->assertEqual($readme, "sample text that has been modified\n", 'Patch was applied to README in conduit directory.');
-  }
-
   protected function checkSSH(array $properties) {}
 
   protected function checkVCS(array $properties) {
@@ -328,6 +360,12 @@ class DrupalWorkerPropertyTestCase extends DrupalWorkerTestCase {
       sdp($module, '$module');
       $this->assertTrue(file_exists(JOB_ROOT . '/' . $path . '/' . $module), "Module file '$module' exists in directory.");
     }
+  }
+
+  protected function checkPatch(array $properties) {
+    $readme = file_get_contents(JOB_ROOT . '/test/README');
+    sdp($readme, '$readme');
+    $this->assertEqual($readme, "sample text that has been modified\n", 'Patch was applied to README in conduit directory.');
   }
 
 //     protected function check(array $properties) {}

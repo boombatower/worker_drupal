@@ -37,22 +37,54 @@ $plugin = array(
  * Perform the job.
  *
  * @param $properties
- *   Associative array of properties defining the job.
+ *   Associative array of properties applicable to the current job.
+ *   Supported keys and values are:
+ *   - database: The type of database to connect to. A valid plugin with the
+ *       same name should exist in the worker/plugins/database directory.
+ *   - version: The [Drupal] primary version number.
+ *   - plugin: The name of the plugin to load. A valid plugin with the
+ *       same name should exist in the worker-drupal/plugins directory.
+ *
+ *     Plumber parameters.
+ *   - variables: Associative array of drupal variables to set.
+ *   - classes: Array of test class names to run tests on.
+ *   - statuses: Array of relevant assertion statuses to store.
+ *       Example: array('fail', 'exception', 'debug')
+ *       Default: ?
+ *   - context: Integer indicating the number of assertions surrounding a
+ *      "relevant" assertion to return. Relevant assertions are defined by the
+ *      "statuses" key.
+ *
  * @return
- *   Associative array containing the 'type' of result being returned and the
- *   associated value that goes along with it, either 'errors' or 'classes'.
+ *   Associative array with the following keys:
+ *   - type: String indicating the last step performed. Possible values are:
+ *       'install', 'enable', or 'test.'
+ *   - error: Error message. // @todo Fix the return value to be string or FALSE!!!
+ *   - log: Associative array keyed by test class name and containing the length
+ *       of time, in seconds, that the task took to complete, otherwise FALSE.
+ *   - results: An associative array with the following keys:
+ *     - summaries: Associative array keyed by test class name and containing
+ *         the count of assertions by type.
+ *     - results: List of relevant assertions (assertions whose status was in
+ *         the list of relevant statuses or were part of the context around the
+ *         latter type of assertion).
+ *   - meta: An associative array keyed by test class name and containing keys
+ *       'name' and 'group' as specified in each tests getInfo().
+ *
+ * @see worker_perform() for a description of other keys in this array.
  */
 function plumber_perform(array $properties) {
   // Load common Drupal conduit functions.
-  require drupal_get_path('module', 'conduit_drupal') . '/drupal.inc';
+  require drupal_get_path('module', 'worker_drupal') . '/worker_drupal.inc';
 
   if (($error = worker_drupal_install($properties)) !== TRUE) {
     return array(
       'type' => 'install',
-      'error' => $error,
+      'error' => $error, // @todo Function returns boolean not a string
     );
   }
 
+  // @todo Why is this necessary? Doesn't run-tests.sh load simpletest?
   worker_log('Enable simpletest.');
   if (!worker_drupal_module_enable('simpletest', $properties['version'])) {
     return array(
@@ -84,7 +116,8 @@ function plumber_perform(array $properties) {
  * @param $properties
  *   Associative array of properties defining the job.
  * @return
- *   Log of the length of time each testcase took to complete, otherwise FALSE.
+ *   Associative array keyed by test class name and containing the length of
+ *   time, in seconds, that the task took to complete, otherwise FALSE.
  * @see worker_execute_concurrent()
  */
 function plumber_plumb(array $properties) {
@@ -151,7 +184,7 @@ function plumber_results(array $properties) {
   // includes the amount of context on either side of the relevant assertion.
   $context_length = $properties['context'] * 2 + 1;
 
-  // Cycle through the classes that are know to have assertions with statuses
+  // Cycle through the classes that are known to have assertions with statuses
   // that are to be included in the results.
   $results = array();
   foreach ($classes as $class) {
@@ -190,10 +223,11 @@ function plumber_results(array $properties) {
       // Cycle through each assertion looking for assertions that should be
       // reported and grab the relevant context around the assertion.
       $i = 0;
+      // @todo Isn't this code reiterating over assertions previously processed?
       foreach ($assertions as $assertion) {
         if (in_array($assertion['status'], $properties['statuses'])) {
           // Since the $assertions array is keyed by message_id adding an
-          // assertion multiple time will not result in duplicate entries. In
+          // assertion multiple times will not result in duplicate entries. In
           // case the assertion is at the beginning of the list we need to
           // ensure the offset parameter to array_splice() is non-negative.
           $length = $properties['context'] > $i ? $context_length - ($properties['context'] - $i) : $context_length;
