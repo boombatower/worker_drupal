@@ -48,7 +48,7 @@ function coder_perform(array $properties) {
   // Build the common part of the drush coder_review command and determine the
   // file in which the results will be logged.
   $command = 'drush coder-review ' . $severity . implode(' ', $properties['reviews']) . ' ';
-  $log_file = JOB_ROOT . '/coder_review.log';
+  $log_file = JOB_ROOT . '/coder_review.' . mt_rand(100, 10000);
 
   // Split the files into chunks that will be processed separately and build
   // the complete drush command.
@@ -61,7 +61,7 @@ function coder_perform(array $properties) {
   // Execute the set of drush coder_review commands.
   $log = worker_execute_concurrent($commands, 100);
 
-  // Parse the resulting log file and collect the results.
+  // Parse the result log file and collect the code review messages.
   $results = array();
   if (file_exists($log_file) && ($lines = file($log_file))) {
     $length = strlen($path);
