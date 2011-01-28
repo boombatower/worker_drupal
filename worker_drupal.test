@@ -159,8 +159,7 @@ class DrupalWorkerScanTestCase extends DrupalWorkerTestCase {
     // Ensure that the job plugin can be loaded.
     $plugin = worker_plugins_get('worker', $properties['plugin']);
     $this->assertNotNull($plugin, 'Plugin is not NULL');
-    if ($plugin /*= worker_plugins_get('worker', $properties['plugin'])*/) {
-      sdp($plugin, '$plugin');
+    if ($plugin) {
       $this->assertEqual($plugin['title'], 'Drupal scan', 'Plugin title is "Drupal scan."');
     }
 

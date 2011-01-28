@@ -41,12 +41,12 @@ $plugin = array(
  *   Supported keys and values are:
  *   - database: The type of database to connect to. A valid plugin with the
  *       same name should exist in the worker/plugins/database directory.
- *   - version: The [Drupal] primary version number.
+ *   - version: The Drupal primary version number.
  *   - plugin: The name of the plugin to load. A valid plugin with the
  *       same name should exist in the worker-drupal/plugins directory.
  *
  *     Plumber parameters.
- *   - variables: Associative array of drupal variables to set.
+ *   - variables: Associative array of Drupal variables to set.
  *   - classes: Array of test class names to run tests on.
  *   - statuses: Array of relevant assertion statuses to store.
  *       Example: array('fail', 'exception', 'debug')
@@ -59,7 +59,7 @@ $plugin = array(
  *   Associative array with the following keys or FALSE:
  *   - type: String indicating the last step performed. Possible values are:
  *       'install', 'enable', or 'test.'
- *   - error: Error message.
+ *   - error: Error message or FALSE.
  *   - log: Associative array keyed by test class name and containing the length
  *       of time, in seconds, that the task took to complete, otherwise FALSE.
  *   - results: An associative array with the following keys:
