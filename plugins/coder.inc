@@ -29,8 +29,22 @@ $plugin = array(
  * @return
  *   Multi-dimentional, associative array of coder_review results keyed by the
  *   file path and containing an array of messages with the keys: line,
- *   severity, and message. The line key will FALSE if there is no line
- *   associated with the message.
+ *   severity, and message; and a sum of the number of messages of each type.
+ *   The line key will FALSE if there is no line associated with the message.
+ *
+ *   @code
+ *     $result = array(
+ *       '#total' => array(1, 0, 0),
+ *       'file1.php' => array(
+ *         '#total' => array(1, 0, 0),
+ *         array(
+ *           'line' => 17, // number or FALSE
+ *           'severity' => 'major', // major|normal|minor
+ *           'message' => 'This file is terrible.'
+ *         ),
+ *       ),
+ *     );
+ *   @endcode
  *
  * @see worker_perform() for a description of other keys in this array.
  */
@@ -62,7 +76,8 @@ function coder_perform(array $properties) {
   $log = worker_execute_concurrent($commands, 100);
 
   // Parse the result log file and collect the code review messages.
-  $results = array();
+  $map = array_flip(array('critical', 'normal', 'minor'));
+  $results = array('#total' => array(0, 0, 0));
   if (file_exists($log_file) && ($lines = file($log_file))) {
     $length = strlen($path);
     $file = FALSE;
@@ -71,15 +86,20 @@ function coder_perform(array $properties) {
       // '+line_number: [severity] message' where the line_number is optional or
       // provide a file reference that starts with the $path determined above.
       if (preg_match('/(\+(?P<line>-?\d+): )?\[(?P<severity>\w+)\] (?P<message>.*?)$/m', $line, $match)) {
+        // Add message to overall total and file total.
+        $type = $map[$match['severity']];
+        $results['#total'][$type]++;
+        $results[$file]['#total'][$type]++;
+
         $results[$file][] = array(
           'line' => empty($match['line']) ? FALSE : $match['line'],
-          'severity' => $match['severity'],
+          'type' => $match['severity'],
           'message' => $match['message'],
         );
       }
       elseif (substr($line, 0, $length) == $path) {
         $file = substr($line, $length + 1, -2);
-        $results[$file] = array();
+        $results[$file] = array('#total' => array(0, 0, 0));
       }
     }
   }
