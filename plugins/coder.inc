@@ -66,10 +66,11 @@ function coder_perform(array $properties) {
 
   // Split the files into chunks that will be processed separately and build
   // the complete drush command.
+  $i = 1;
   $chunks = array_chunk($files, CODER_CHUNK);
   $commands = array();
   foreach ($chunks as $chunk) {
-    $commands[] = $command . implode(' ', $chunk) . ' >> ' . $log_file;
+    $commands['batch ' . $i++] = $command . implode(' ', $chunk) . ' >> ' . $log_file;
   }
 
   // Execute the set of drush coder_review commands.
