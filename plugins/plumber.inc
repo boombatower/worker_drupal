@@ -161,18 +161,24 @@ function plumber_results(array $properties) {
   $query->addExpression('COUNT(message_id)', 'count');
   $result = $query->execute();
 
+  // Map of message type (status) to #total key.
+  $map = array_flip(array('pass', 'fail', 'exception'));
+
   // Build an associative array of summaries keyed by the test class and
   // containing the count of each status type found in the results for the test
   // class. Also compile a list of classes that have status types that are
   // found in the 'statues' property.
-  $summaries = array();
+  $results = array();
   $classes = array();
   while ($summary = $result->fetchAssoc()) {
-    if (empty($summaries[$summary['test_class']])) {
-      $summaries[$summary['test_class']] = array();
+    if (empty($results[$summary['test_class']])) {
+      $results[$summary['test_class']]['#total'] = array(0, 0, 0);
     }
-    $summaries[$summary['test_class']][$summary['status']] = $summary['count'];
+    $results[$summary['test_class']]['#total'][$map[$summary['status']]] = $summary['count'];
 
+    // If there are relevant assertions related to the test class then add the
+    // class to the list of classes for  later processing when the actual
+    // assertions are loaded and check for relevancy.
     if (in_array($summary['status'], $properties['statuses'])) {
       $classes[$summary['test_class']] = $summary['test_class'];
     }
@@ -185,7 +191,7 @@ function plumber_results(array $properties) {
 
   // Cycle through the classes that are known to have assertions with statuses
   // that are to be included in the results.
-  $results = array();
+  $total = 0;
   foreach ($classes as $class) {
     // Clear out the message_id which is used to loop over assertions for a
     // test class to ensure that memory usage stays minimal. Also reset the
@@ -230,16 +236,19 @@ function plumber_results(array $properties) {
           // case the assertion is at the beginning of the list we need to
           // ensure the offset parameter to array_splice() is non-negative.
           $length = $properties['context'] > $i ? $context_length - ($properties['context'] - $i) : $context_length;
-          $results += array_slice($assertions, max($i - $properties['context'], 0), $length, TRUE);
+          $results[$class] += array_slice($assertions, max($i - $properties['context'], 0), $length, TRUE);
 
           // If the number of relevant assertions has gone over the maximum
           // number allowed then break out of the processing loops.
-          if (count($results) >= PLUMBER_MAX) {
+          if ($total + count($results[$class]) >= PLUMBER_MAX) {
             break 3;
           }
         }
         $i++;
       }
+
+      // Clean results for the class.
+      plumber_results_clean($results[$class]);
 
       // Store the number of assertions processed in the loop since the value
       // may be used multiple times.
@@ -250,25 +259,40 @@ function plumber_results(array $properties) {
     // there is a possibility for more assertions to exist. This assumes the
     // increment amount is greater then the context.
     while ($count >= PLUMBER_INCREMENT);
-  }
 
-  // Cleanup relevant assertions.
-  foreach ($results as &$result) {
-    // Remove useless/client-specific keys.
-    unset($result['message_id']);
-    unset($result['test_id']);
-
-    // Make file path relative to job root.
-    $result['file'] = str_replace(JOB_ROOT, '', $result['file']);
+    // Add the number of results for the current class to the total minus one
+    // for the #total entry.
+    $total += count($results[$class]) - 1;
   }
-  worker_log('> ' . number_format(count($results)) . ' relevant assertions found.');
+  worker_log('> ' . number_format($total) . ' relevant assertions found.');
 
   // Return the summaries as the results are not guaranteed to contain, and most
   // likely will not contain, all the assertions for all the tests.
-  return array(
-    'summaries' => $summaries,
-    'results' => array_values($results),
-  );
+  return $results;
+}
+
+/**
+ * Clean results for a single class.
+ *
+ * @param $results
+ *   Array of results.
+ */
+function plumber_results_clean(&$results) {
+  foreach ($results as $key => &$result) {
+    if ($key != '#total') {
+      // Rename keys and make file path relative to job root.
+      $result['type'] = $result['status'];
+      $result['group'] = $result['message_group'];
+      $result['file'] = str_replace(JOB_ROOT, '', $result['file']);
+
+      // Remove unused and renamed keys.
+      unset($result['message_id']);
+      unset($result['test_id']);
+      unset($result['test_class']);
+      unset($result['status']);
+      unset($result['message_group']);
+    }
+  }
 }
 
 /**
