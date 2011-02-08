@@ -39,7 +39,7 @@ $plugin = array(
  *         '#total' => array(1, 0, 0),
  *         array(
  *           'line' => 17, // number or FALSE
- *           'severity' => 'major', // major|normal|minor
+ *           'type' => 'major', // major|normal|minor
  *           'message' => 'This file is terrible.'
  *         ),
  *       ),
