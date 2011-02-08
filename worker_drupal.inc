@@ -30,10 +30,8 @@ function worker_drupal_install(array $properties) {
   $settings = JOB_ROOT . '/sites/default/settings.php';
   copy($default_settings, $settings);
 
-  // Invoke either the Drupal 6 installation function or the Drupal 7 and above
-  // installation function and wait until after chmod() before checking result.
-  $function = 'worker_drupal_install_' . min($properties['version'], 7);
-  $installed = $function($properties);
+  // Perform Drupal installation using drush.
+  $installed = worker_drupal_install_drush($properties);
 
   // Ensure that both the default sites directory and settings.php are writable
   // so they can be removed later.
@@ -48,7 +46,7 @@ function worker_drupal_install(array $properties) {
 
   // Since Drupal installation has completed then go ahead and override/set the
   // specified list of variables.
-  if (!worker_drupal_install_variables($properties['variables'], $connection)) {
+  if (!worker_drupal_install_variables($properties['variables'])) {
     return 'Failed to set Drupal variable(s).';
   }
 
@@ -56,144 +54,25 @@ function worker_drupal_install(array $properties) {
 }
 
 /**
- * Perform Drupal 7 installation using non-interactive script.
- *
- * For Drupal 7 and above we can use the non-interactive installation method
- * which requires a file to be generated with the site configuration
- * information and placed in the root of the Drupal install.
+ * Perform Drupal installation using drush.
  *
  * @param $properties
  *   Associative array of properties defining the job.
  * @return
  *   TRUE if successful, otherwise an error message or FALSE.
- *
- * @see worker_perform() for a description of the properties array.
  */
-function worker_drupal_install_7(array $properties) {
-  // Generate array of settings information required for installation and dump
-  // array in installation script template to a file in the root of job site.
-  $settings = array(
-    'parameters' => array(
-      'profile' => 'minimal',
-      'locale' => 'en',
-    ),
-    'forms' => array(
-      'install_settings_form' => worker_database_info('drupal', $properties['database']),
-      'install_configure_form' => array(
-        'site_name' => 'Worker generated installation',
-        'site_mail' => 'worker@example.com',
-        'account' => array(
-          'name' => 'admin',
-          'mail' => 'admin@example.com',
-          'pass' => array(
-            'pass1' => worker_drupal_password(),
-            'pass2' => worker_drupal_password(),
-          ),
-        ),
-        'update_status_module' => array(
-          1 => TRUE,
-          2 => TRUE,
-        ),
-        'clean_url' => TRUE,
-      ),
-    ),
-  );
-  $out = <<<'EOT'
-<?php
-define('MAINTENANCE_MODE', 'install');
-define('DRUPAL_ROOT', getcwd());
-require DRUPAL_ROOT . '/includes/install.core.inc';
-$settings = [settings];
-install_drupal($settings);
+function worker_drupal_install_drush(array $properties) {
+  // Determine profile, database URL, and password.
+  $db = worker_database_info('drupal', $properties['database']);
+  $profile = $properties['version'] == 6 ? 'default' : 'minimal';
+  $url = escapeshellarg("{$db['driver']}://{$db['username']}:{$db['password']}@{$db['host']}/{$db['database']}"); // @TODO Sqlite.
+  $pass = escapeshellarg(worker_drupal_password());
 
-EOT;
-  $out = str_replace('[settings]', var_export($settings, TRUE), $out);
-  file_put_contents(JOB_ROOT . '/install.worker.php', $out);
-
-  // To compelete the installation the generated file needs to be invoked
-  // using the URL through which the site will be accessed.
-  $browser = new Browser();
-  $result = $browser->get(JOB_URL . '/install.worker.php');
-  if ($result['code'] != 200) {
-    return worker_drupal_install_error($browser);
-  }
-  return TRUE;
-}
-
-/**
- * Perform Drupal 6 installation using Browser class.
- *
- * @param $properties
- *   Associative array of properties defining the job.
- * @return
- *   TRUE if successful, otherwise an error message or FALSE.
- *
- * @see worker_perform() for a description of the properties array.
- */
-function worker_drupal_install_6(array $properties) {
-  $browser = new Browser();
-
-  // Step: Select an installation profile.
-  // Step: Choose language.
-  $result = $browser->get(JOB_URL . '/install.php?profile=default&locale=en');
-  if ($result['code'] != 200) {
-    worker_log('> Failed to start installation process.');
-    return worker_drupal_install_error($browser);
-  }
-
-  // Step: Database configuration.
-  $database = worker_database_info('drupal', $properties['database']);
-  $post = array();
-  if ($browser->getPage()->xpath('//input[@name="driver"]')) {
-    $post['driver'] = $properties['database'];
-  }
-  $post['db_path'] = $database['database'];
-  $post['db_user'] = $database['username'];
-  $post['db_pass'] = $database['password'];
-  $post['db_host'] = $database['host'];
-  $result = $browser->post(NULL, $post, 'Save and continue');
-  if ($result['code'] != 302) {
-    worker_log('> Failed to submit database information.');
-    return worker_drupal_install_error($browser);
-  }
-
-  // Step: Site configuration.
-  $post = array();
-  $post['site_name'] = 'Conduit generated installation';
-  $post['site_mail'] = 'worker@example.com';
-  $post['account[name]'] = 'admin';
-  $post['account[mail]'] = 'admin@example.com';
-  $post['account[pass][pass1]'] = $post['account[pass][pass2]'] = worker_drupal_password();
-  $post['update_status_module[1]'] = FALSE;
-  $result = $browser->post(NULL, $post, 'Save and continue');
-  if ($result['code'] != 200 || !$browser->getPage()->xpath('//h2[text()="Drupal installation complete"]')) {
-    worker_log('> Failed to complete site configuration.');
-    return worker_drupal_install_error($browser);
-  }
-  return TRUE;
-}
-
-/**
- * Attempt to scrape an error message from the current browser page.
- *
- * @param $browser
- *   Browser class object after performing a request.
- * @return
- *   The first error message on the page, otherwise FALSE.
- */
-function worker_drupal_install_error(Browser $browser) {
-  // Find the first list item in the error messages div or if only one error
-  // and thus no list then just grab the only message.
-  if ($page = $browser->getPage()) {
-    if (($error = current($page->xpath('//div[@class="messages error"]//li'))) ||
-      ($error = current($page->xpath('//div[@class="messages error"]')))) {
-      // Remove any HTML tags the message may contain.
-      $error = trim(preg_replace('/^Error message/m', '', strip_tags((string) $error->asXML())));
-      worker_log('> ' . $error);
-      return $error;
-    }
-  }
-  return FALSE;
+  // Execute drush installation from within the job directory.
+  worker_chdir();
+  $success = worker_execute("drush si $profile --yes --db-url=$url --site-name='Worker generated installation' --account-name=admin --account-pass=$pass");
+  chdir(DRUPAL_ROOT);
+  return $success ? TRUE : 'Drupal installation failed';
 }
 
 /**
@@ -201,19 +80,17 @@ function worker_drupal_install_error(Browser $browser) {
  *
  * @param $variables
  *   List of Drupal variables.
- * @param $connection
- *   Database connection to set the variables in.
  * @return
  *   TRUE if successful, otherwise FALSE.
  */
-function worker_drupal_install_variables(array $variables, $connection) {
+function worker_drupal_install_variables(array $variables) {
   worker_log('Set Drupal variable(s).');
   $success = TRUE;
   foreach ($variables as $name => $value) {
     // If the variable was not set successfully then log the event and set
     // success to false, but continue so that if the variable set had an error
     // for some reason other then database connectivity that may be noticed.
-    if (!worker_drupal_variable_set($name, $value, $connection)) {
+    if (!worker_drupal_variable_set($name, $value)) {
       worker_log('> Failed to set variable ' . $name . '.');
       $success = FALSE;
     }
@@ -228,30 +105,19 @@ function worker_drupal_install_variables(array $variables, $connection) {
  *   Name of the variable.
  * @param $value
  *   Value of the variable.
- * @param $connection
- *   Database connection to set the variable in.
  * @return
  *   TRUE if successful, otherwise FALSE.
  */
-function worker_drupal_variable_set($name, $value, $connection) {
-  // Clear entire cache to ensure that variable changes are loaded.
-  $connection->delete('cache')->execute();
+function worker_drupal_variable_set($name, $value) {
+  // Escape name and value arguments.
+  $name = escapeshellarg($name);
+  $value = escapeshellarg($value);
 
-  // Remove any pre-existing value for the variable.
-  $connection
-    ->delete('variable')
-    ->condition('name', $name)
-    ->execute();
-
-  // Insert the variable and serialize the value. If the return value is zero
-  // then the insert was successful since the variables table has no ID field.
-  return (int) $connection
-    ->insert('variable')
-    ->fields(array(
-      'name' => $name,
-      'value' => serialize($value),
-    ))
-    ->execute() === 0;
+  // Invoke drush vset from within the job directory.
+  worker_chdir();
+  $success = worker_execute("drush vset --always-set $name $value");
+  chdir(DRUPAL_ROOT);
+  return $success;
 }
 
 /**
@@ -280,31 +146,10 @@ function worker_drupal_module_enable($modules, $version) {
     $modules = array($modules);
   }
 
-  // Login to the job site.
-  $browser = new Browser();
-  $post = array(
-    'name' => 'admin',
-    'pass' => worker_drupal_password(),
-  );
-  $browser->post(JOB_URL . '/user/login', $post, 'Log in');
-
-  // Load the modules page, scan for the appropriate checkboxes, build up a
-  // post array, and submit.
-  $browser->get(JOB_URL . ($version == 6 ? '/admin/build/modules' : '/admin/modules'));
-  $post = array();
-  $found = TRUE;
-  foreach ($modules as $module) {
-    $name = $version == 6 ? 'status[' . $module . ']' : '[' . $module . '][enable]';
-    if ($checkbox = current($browser->getPage()->xpath('//input[contains(@name,"' . $name . '")]'))) {
-      $post[(string) $checkbox['name']] = TRUE;
-    }
-    else {
-      worker_log('Failed to enable ' . $module . '.');
-      $found = FALSE;
-    }
-  }
-  $result = $browser->post(NULL, $post, 'Save configuration');
-  return $found && $result['code'] == 302;
+  worker_chdir();
+  $success = worker_execute('drush --yes en ' . implode(' ', $modules));
+  chdir(DRUPAL_ROOT);
+  return $success;
 }
 
 /**
