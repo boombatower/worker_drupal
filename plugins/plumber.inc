@@ -109,7 +109,7 @@ function plumber_perform(array $properties) {
   return array(
     'type' => 'test',
     'log' => $log,
-    'results' => $results,
+    'result' => $results,
     'meta' => $meta,
   );
 }
@@ -173,13 +173,15 @@ function plumber_results(array $properties) {
   // containing the count of each status type found in the results for the test
   // class. Also compile a list of classes that have status types that are
   // found in the 'statues' property.
-  $results = array();
+  $results = array('#total' => array(0, 0, 0));
   $classes = array();
   while ($summary = $result->fetchAssoc()) {
     if (empty($results[$summary['test_class']])) {
       $results[$summary['test_class']]['#total'] = array(0, 0, 0);
     }
-    $results[$summary['test_class']]['#total'][$map[$summary['status']]] = $summary['count'];
+    $type = $map[$summary['status']];
+    $results['#total'][$type] += $summary['count'];
+    $results[$summary['test_class']]['#total'][$type] = $summary['count'];
 
     // If there are relevant assertions related to the test class then add the
     // class to the list of classes for  later processing when the actual
