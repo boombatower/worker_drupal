@@ -77,6 +77,11 @@ function plumber_perform(array $properties) {
   // Load common Drupal conduit functions.
   require drupal_get_path('module', 'worker_drupal') . '/worker_drupal.inc';
 
+  // Set the SimpleTest flags to ensure the results are available and verbose
+  // files are not needlessly generated.
+  $properties['variables']['simpletest_clear_results'] = FALSE;
+  $properties['variables']['simpletest_verbose'] = FALSE;
+
   if (($error = worker_drupal_install($properties)) !== TRUE) {
     return array(
       'type' => 'install',
