@@ -35,11 +35,6 @@ function worker_drupal_install(array $properties) {
   $function = 'worker_drupal_install_' . min($properties['version'], 7);
   $installed = $function($properties);
 
-  // Ensure that both the default sites directory and settings.php are writable
-  // so they can be removed later.
-  chmod(JOB_ROOT . '/sites/default', 0755);
-  chmod(JOB_ROOT . '/sites/default/settings.php', 0644);
-
   // If the installation was not a success then $installed will be FALSE or
   // contain the error message associated with the failure.
   if ($installed !== TRUE) {
