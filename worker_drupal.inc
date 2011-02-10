@@ -78,7 +78,9 @@ function worker_drupal_install_7(array $properties) {
       'locale' => 'en',
     ),
     'forms' => array(
-      'install_settings_form' => worker_database_info('drupal', $properties['database']),
+      'install_settings_form' => array(
+        'mysql' => worker_database_info('drupal', $properties['database']),
+      ),
       'install_configure_form' => array(
         'site_name' => 'Worker generated installation',
         'site_mail' => 'worker@example.com',
