@@ -15,6 +15,11 @@
  */
 define('CODER_CHUNK', 30);
 
+/**
+ * The maximum number of relevant messages.
+ */
+define('CODER_MAX', 1000);
+
 $plugin = array(
   'title' => t('Drupal coder'),
   'description' => t('Provide Drupal coder integration.'),
@@ -97,6 +102,11 @@ function coder_perform(array $properties) {
           'type' => $match['severity'],
           'message' => $match['message'],
         );
+
+        // If the number of messages has reached the max then stop.
+        if (array_sum($results['#total']) >= CODER_MAX) {
+          break;
+        }
       }
       elseif (substr($line, 0, $length) == $path) {
         $file = substr($line, $length + 1, -2);
