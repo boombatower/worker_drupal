@@ -109,7 +109,8 @@ function coder_perform(array $properties) {
     // @TODO Implement annotate functionality (use concurrency).
   }
 
-  return $results;
+  // If there are no critical or normal messages then codered a pass.
+  return array($results['#total'][0] + $results['#total'][1] == 0, $results);
 }
 
 /**
