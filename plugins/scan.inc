@@ -29,21 +29,15 @@ $plugin = array(
 function scan_perform(array $properties) {
   if ($errors = worker_syntax($properties)) {
     // Encapsulate the errors so the type can be easily determined.
-    return array(
-      'type' => 'syntax',
-      'errors' => $errors,
-    );
+    return array(FALSE, $errors);
   }
   elseif ($errors === FALSE) {
     // An error occurred and should be treated as a job failure.
-    return FALSE;
+    return array(FALSE, worker_log_last());
   }
 
   // Get the list of test cases.
-  return array(
-    'type' => 'list',
-    'classes' => scan_list($properties),
-  );
+  return array(TRUE, scan_list($properties));
 }
 
 /**
