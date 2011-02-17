@@ -12,7 +12,7 @@
  * @param $properties
  *   Associative array of properties defining the job.
  * @return
- *   TRUE if successful, otherwise FALSE or an error message.
+ *   TRUE if successful, otherwise FALSE.
  *
  * @see worker_perform() for a description of the properties array.
  */
@@ -56,7 +56,7 @@ function worker_drupal_install(array $properties) {
  * @param $properties
  *   Associative array of properties defining the job.
  * @return
- *   TRUE if successful, otherwise an error message or FALSE.
+ *   TRUE if successful, otherwise FALSE.
  *
  * @see worker_perform() for a description of the properties array.
  */
@@ -121,7 +121,7 @@ EOT;
  * @param $properties
  *   Associative array of properties defining the job.
  * @return
- *   TRUE if successful, otherwise an error message or FALSE.
+ *   TRUE if successful, otherwise FALSE.
  *
  * @see worker_perform() for a description of the properties array.
  */

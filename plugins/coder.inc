@@ -32,9 +32,10 @@ $plugin = array(
  * @param $properties
  *   Associative array of properties defining the job.
  * @return
- *   Multi-dimentional, associative array of coder_review results keyed by the
- *   file path and containing an array of messages with the keys: line,
- *   severity, and message; and a sum of the number of messages of each type.
+ *   An array containing a boolean for pass/fail and the result. The result is
+ *   a multi-dimentional, associative array of coder_review results keyed by
+ *   the file path and containing an array of messages with the keys: line,
+ *   type, and message; and a sum of the number of messages of each type.
  *   The line key will FALSE if there is no line associated with the message.
  *
  *   @code
@@ -51,7 +52,7 @@ $plugin = array(
  *     );
  *   @endcode
  *
- * @see worker_perform() for a description of other keys in this array.
+ * @see worker_perform()
  */
 function coder_perform(array $properties) {
   // Assemble list of relevant files and append the path reletive to

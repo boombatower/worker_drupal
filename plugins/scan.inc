@@ -21,10 +21,11 @@ $plugin = array(
  * @param $properties
  *   Associative array of properties defining the job.
  * @return
- *   Associative array containing the 'type' of result being returned and the
- *   associated value that goes along with it, either 'errors' or 'classes'.
+ *   An array containing a boolean for pass/fail and the result. The result is
+ *   an string error message; an array of syntax errors, see worker_syntax();
+ *   or a list of test classes found.
  *
- * @see worker_perform() for a description of other keys in this array.
+ * @see worker_perform()
  */
 function scan_perform(array $properties) {
   if ($errors = worker_syntax($properties)) {

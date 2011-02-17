@@ -56,22 +56,12 @@ $plugin = array(
  *      "statuses" key.
  *
  * @return
- *   Associative array with the following keys or FALSE:
- *   - type: String indicating the last step performed. Possible values are:
- *       'install', 'enable', or 'test.'
- *   - error: Error message or FALSE.
- *   - log: Associative array keyed by test class name and containing the length
- *       of time, in seconds, that the task took to complete, otherwise FALSE.
- *   - results: An associative array with the following keys:
- *     - summaries: Associative array keyed by test class name and containing
- *         the count of assertions by type.
- *     - results: List of relevant assertions (assertions whose status was in
- *         the list of relevant statuses or were part of the context around the
- *         latter type of assertion).
- *   - meta: An associative array keyed by test class name and containing keys
- *       'name' and 'group' as specified in each tests getInfo().
+ *   An array containing a boolean for pass/fail and the result. The result
+ *   is a string message or an associative array with the following keys:
+ *   log, see worker_execute_concurrent(); results, see plumber_results(); and
+ *   meta, see plumber_meta().
  *
- * @see worker_perform() for a description of other keys in this array.
+ * @see worker_perform()
  */
 function plumber_perform(array $properties) {
   // Load common Drupal conduit functions.
@@ -140,11 +130,28 @@ function plumber_plumb(array $properties) {
  * @param $properties
  *   Associative array of properties defining the job.
  * @return
- *   An associative containing keys 'summaries' and 'results'. The summaries
- *   key contains an associative array keyed by the test class and containing
- *   the count of assertions by type. The results key contains a list of
- *   relevant assertions, assertions that either were of the specified status
- *   or were part of the context around the latter type of assertion.
+ *   Multi-dimentional, associative array of plumber results keyed by the
+ *   test class and containing an array of assertions with the keys: line,
+ *   type, message, function, group, and file; and a sum of the number of
+ *   assertions of each type. The line key will FALSE if there is no line
+ *   associated with the message.
+ *
+ *   @code
+ *     $result = array(
+ *       '#total' => array(1, 0, 0),
+ *       'TestClass' => array(
+ *         '#total' => array(1, 0, 0),
+ *         array(
+ *           'line' => 17, // number or FALSE
+ *           'type' => 'pass', // pass|fail|exception|debug
+ *           'message' => 'Massive fail'
+ *           'function' => 'TestClass->foo()',
+ *           'group' => 'Some Group',
+ *           'file' => '/path/to/file.php',
+ *         ),
+ *       ),
+ *     );
+ *   @endcode
  */
 function plumber_results(array $properties) {
   worker_log('Process results.');
