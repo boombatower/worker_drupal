@@ -33,18 +33,14 @@ function worker_drupal_install(array $properties) {
   // Invoke either the Drupal 6 installation function or the Drupal 7 and above
   // installation function and wait until after chmod() before checking result.
   $function = 'worker_drupal_install_' . min($properties['version'], 7);
-  $installed = $function($properties);
-
-  // If the installation was not a success then $installed will be FALSE or
-  // contain the error message associated with the failure.
-  if ($installed !== TRUE) {
-    return $installed;
+  if (!$function($properties)) {
+    return FALSE;
   }
 
   // Since Drupal installation has completed then go ahead and override/set the
   // specified list of variables.
   if (!worker_drupal_install_variables($properties['variables'])) {
-    return 'Failed to set Drupal variable(s).';
+    return FALSE;
   }
 
   return TRUE;
@@ -111,8 +107,10 @@ EOT;
   // using the URL through which the site will be accessed.
   $browser = new Browser();
   $result = $browser->get(JOB_URL . '/install.worker.php');
-  if ($result['code'] != 200) {
-    return worker_drupal_install_error($browser);
+  if ($result['code'] != 200 || $result['content']) {
+    worker_log('> Failed to install Drupal.');
+    worker_drupal_install_error($browser);
+    return FALSE;
   }
   return TRUE;
 }
@@ -135,7 +133,8 @@ function worker_drupal_install_6(array $properties) {
   $result = $browser->get(JOB_URL . '/install.php?profile=default&locale=en');
   if ($result['code'] != 200) {
     worker_log('> Failed to start installation process.');
-    return worker_drupal_install_error($browser);
+    worker_drupal_install_error($browser);
+    return FALSE;
   }
 
   // Step: Database configuration.
@@ -151,7 +150,8 @@ function worker_drupal_install_6(array $properties) {
   $result = $browser->post(NULL, $post, 'Save and continue');
   if ($result['code'] != 302) {
     worker_log('> Failed to submit database information.');
-    return worker_drupal_install_error($browser);
+    worker_drupal_install_error($browser);
+    return FALSE;
   }
 
   // Step: Site configuration.
@@ -165,7 +165,8 @@ function worker_drupal_install_6(array $properties) {
   $result = $browser->post(NULL, $post, 'Save and continue');
   if ($result['code'] != 200 || !$browser->getPage()->xpath('//h2[text()="Drupal installation complete"]')) {
     worker_log('> Failed to complete site configuration.');
-    return worker_drupal_install_error($browser);
+    worker_drupal_install_error($browser);
+    return FALSE;
   }
   return TRUE;
 }
@@ -173,24 +174,25 @@ function worker_drupal_install_6(array $properties) {
 /**
  * Attempt to scrape an error message from the current browser page.
  *
+ * If found the message will be printed to the job log.
+ *
  * @param $browser
  *   Browser class object after performing a request.
- * @return
- *   The first error message on the page, otherwise FALSE.
  */
 function worker_drupal_install_error(Browser $browser) {
-  // Find the first list item in the error messages div or if only one error
-  // and thus no list then just grab the only message.
   if ($page = $browser->getPage()) {
+    // Find the first list item in the error messages div or if only one error
+    // and thus no list then just grab the only message.
     if (($error = current($page->xpath('//div[@class="messages error"]//li'))) ||
       ($error = current($page->xpath('//div[@class="messages error"]')))) {
       // Remove any HTML tags the message may contain.
-      $error = trim(preg_replace('/^Error message/m', '', strip_tags((string) $error->asXML())));
-      worker_log('> ' . $error);
-      return $error;
+      worker_log('> ' . trim(preg_replace('/^Error message/m', '', strip_tags((string) $error->asXML()))));
+    }
+    else {
+      // Print the raw output to the log, usually a fatal error message.
+      worker_log('> ' . trim($browser->getContent()));
     }
   }
-  return FALSE;
 }
 
 /**
@@ -213,6 +215,7 @@ function worker_drupal_install_variables(array $variables) {
       $success = FALSE;
     }
   }
+  if (!$success) worker_log('Failed to set Drupal variable(s).');
   return $success;
 }
 
@@ -265,7 +268,11 @@ function worker_drupal_module_enable($modules, $version) {
   }
 
   worker_chdir();
-  $success = worker_execute('drush --yes en ' . implode(' ', $modules));
+  $modules = implode(' ', $modules);
+  worker_log("Enable module(s): $modules.");
+  if (!($success = worker_execute("drush --yes en $modules"))) {
+    worker_log("Failed to enable module(s): $modules.");
+  }
   chdir(DRUPAL_ROOT);
   return $success;
 }

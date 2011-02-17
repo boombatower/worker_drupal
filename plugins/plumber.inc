@@ -82,36 +82,29 @@ function plumber_perform(array $properties) {
   $properties['variables']['simpletest_clear_results'] = FALSE;
   $properties['variables']['simpletest_verbose'] = FALSE;
 
-  if (($error = worker_drupal_install($properties)) !== TRUE) {
-    return array(
-      'type' => 'install',
-      'error' => $error,
-    );
+  if (!worker_drupal_install($properties)) {
+    return array(FALSE, worker_log_last());
   }
 
-  worker_log('Enable simpletest.');
   if (!worker_drupal_module_enable('simpletest', $properties['version'])) {
-    return array(
-      'type' => 'enable',
-      'error' => 'Failed to enable simpletest.',
-    );
+    return array(FALSE, worker_log_last());
   }
 
   if (!($log = plumber_plumb($properties))) {
     // Unrecoverable error related to configuration occurred.
-    return FALSE;
+    return array(FALSE, worker_log_last());
   }
 
   // Process the results of the test and parse the test meta data.
   $results = plumber_results($properties);
   $meta = plumber_meta($properties);
 
-  return array(
-    'type' => 'test',
+  // If there are no fails or exceptions then consider a pass.
+  return array($results['#total'][1] + $results['#total'][2] == 0, array(
     'log' => $log,
     'result' => $results,
     'meta' => $meta,
-  );
+  ));
 }
 
 /**
