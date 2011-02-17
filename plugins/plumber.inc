@@ -126,7 +126,7 @@ function plumber_plumb(array $properties) {
   }
 
   // Run tests using manual concurrency.
-  worker_log('Run ' . number_format(count($properties['classes'])) . ' test case(s).');
+  worker_log('Run ' . number_format(count($properties['classes'])) . ' test case(s) in ' . number_format(count($commands)) . ' batch(es).');
   worker_chdir();
   $log = worker_execute_concurrent($commands);
   chdir(DRUPAL_ROOT);
