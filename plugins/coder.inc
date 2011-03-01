@@ -106,6 +106,7 @@ function coder_perform(array $properties) {
 
         // If the number of messages has reached the max then stop.
         if (array_sum($results['#total']) >= CODER_MAX) {
+          worker_log('Reached maximum number (' . number_format(CODER_MAX) . ') of messages.');
           break;
         }
       }
