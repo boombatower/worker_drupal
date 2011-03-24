@@ -147,7 +147,7 @@ function plumber_plumb(array $properties) {
  *           'message' => 'Massive fail'
  *           'function' => 'TestClass->foo()',
  *           'group' => 'Some Group',
- *           'file' => '/path/to/file.php',
+ *           'file' => 'file.php',
  *         ),
  *       ),
  *     );
@@ -291,7 +291,7 @@ function plumber_results_clean(&$results) {
       // Rename keys and make file path relative to job root.
       $result['type'] = $result['status'];
       $result['group'] = $result['message_group'];
-      $result['file'] = str_replace(JOB_ROOT, '', $result['file']);
+      $result['file'] = basename($result['file']);
 
       // Remove unused and renamed keys.
       unset($result['message_id']);
