@@ -47,7 +47,7 @@ function scan_perform(array $properties) {
  * @param $properties
  *   Associative array of properties defining the job.
  * @return
- *   List of test cases.
+ *   List of test cases, or FALSE.
  */
 function scan_list(array $properties) {
   worker_log('Assemble list of relevant test files.');
@@ -95,7 +95,8 @@ function scan_list(array $properties) {
 
   worker_log('Found ' . number_format(count($classes)) . ' test case(s).');
 
-  return $classes;
+  // An empty array will not encode properly so use FALSE.
+  return $classes ? $classes : FALSE;
 }
 
 /**
