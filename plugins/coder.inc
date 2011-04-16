@@ -111,7 +111,9 @@ function coder_perform(array $properties) {
         }
       }
       elseif (substr($line, 0, $length) == $path) {
-        $file = substr($line, $length + 1, -2);
+        // Extract the file name and make the path relative to the
+        // $properties['path'] by replacing that portion.
+        $file = coder_file_path_result(substr($line, $length + 1, -2), $properties['path']);
         $results[$file] = array('#total' => array(0, 0, 0));
       }
     }
@@ -132,4 +134,26 @@ function coder_perform(array $properties) {
  */
 function coder_file_path(&$file, $key, $path) {
   $file = $path . '/' . $file;
+}
+
+/**
+ * Make a file path relative to a set of paths.
+ *
+ * @param $file
+ *   A file path to make relative.
+ * @param $paths
+ *   An array of paths to remove from the path.
+ * @return
+ *   The relative version of the file path.
+ */
+function coder_file_path_result($file, array $paths) {
+  // Loop over each of the paths and attempt to remove them from the front of
+  // the file path. If the path was removed the stop processing and return the
+  // altered path.
+  $count = 0;
+  foreach ($paths as $path) {
+    $file = ltrim(preg_replace("|^$path|m", '', $file, 1, $count), '/');
+    if ($count) break;
+  }
+  return $file;
 }
