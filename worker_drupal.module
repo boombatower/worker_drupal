@@ -18,6 +18,13 @@
  */
 
 /**
+ * Implements hook_worker_preload().
+ */
+function worker_drupal_worker_preload() {
+  require_once drupal_get_path('module', 'worker_drupal') . '/worker_drupal.inc';
+}
+
+/**
  * Implements hook_ctools_plugin_directory().
  */
 function worker_drupal_ctools_plugin_directory($module, $plugin) {

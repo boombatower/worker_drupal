@@ -65,7 +65,7 @@ $plugin = array(
  */
 function plumber_perform(array $properties) {
   // Load common Drupal conduit functions.
-  require drupal_get_path('module', 'worker_drupal') . '/worker_drupal.inc';
+  require_once drupal_get_path('module', 'worker_drupal') . '/worker_drupal.inc';
 
   // Set the SimpleTest flags to ensure the results are available and verbose
   // files are not needlessly generated.
