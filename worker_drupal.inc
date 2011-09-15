@@ -248,7 +248,10 @@ function worker_drupal_variable_set($name, $value) {
  *   The admin password for the Drupal installation.
  */
 function worker_drupal_password() {
-  return drupal_static(__FUNCTION__, mt_rand(1000, 1000000));
+  if (!($password = &drupal_static(__FUNCTION__))) {
+    $password = sha1(drupal_random_bytes(64));
+  }
+  return $password;
 }
 
 /**
