@@ -23,6 +23,9 @@ function worker_drupal_install(array $properties) {
     return FALSE;
   }
 
+  // Store database connection for later use.
+  drupal_static('worker_drupal_database', $connection); // @TODO Remove once variable_set no longer needs it.
+
   worker_log('Install Drupal ' . $properties['version'] . '.');
 
   // Copy the default.settings.php file as settings.php
@@ -230,6 +233,14 @@ function worker_drupal_install_variables(array $variables) {
  *   TRUE if successful, otherwise FALSE.
  */
 function worker_drupal_variable_set($name, $value) {
+  // Once http://drupal.org/node/664452 has been fixed then remove this. Also
+  // note this only clears the Drupal 7 style variables cache.
+  if (!is_scalar($value)) {
+    $connection = drupal_static('worker_drupal_database');
+    $connection->delete('cache_bootstrap')->condition('cid', 'variables')->execute();
+    return (bool) $connection->merge('variable')->key(array('name' => $name))->fields(array('value' => serialize($value)))->execute();
+  }
+
   // Escape name and value arguments.
   $name = escapeshellarg($name);
   $value = escapeshellarg($value);
