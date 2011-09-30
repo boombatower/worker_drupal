@@ -58,8 +58,8 @@ $plugin = array(
  * @return
  *   An array containing a boolean for pass/fail and the result. The result
  *   is a string message or an associative array with the following keys:
- *   log, see worker_execute_concurrent(); results, see plumber_results(); and
- *   meta, see plumber_meta().
+ *   log, see worker_execute_concurrent(); results, see plumber_results(); meta,
+ *   see plumber_meta(); and coverage, see plumber_coverage().
  *
  * @see worker_perform()
  */
@@ -72,11 +72,21 @@ function plumber_perform(array $properties) {
   $properties['variables']['simpletest_clear_results'] = FALSE;
   $properties['variables']['simpletest_verbose'] = FALSE;
 
+  // If coverage is enabled then filter the files based on the file list.
+  if ($properties['coverage']) {
+    $properties['variables']['code_coverage_filter_files'] = worker_file_list($properties);
+  }
+
   if (!worker_drupal_install($properties)) {
     return array(FALSE, worker_log_last());
   }
 
   if (!worker_drupal_module_enable('simpletest', $properties['version'])) {
+    return array(FALSE, worker_log_last());
+  }
+
+  // Coverage requires the coverage module to be enabled.
+  if ($properties['coverage'] && !worker_drupal_module_enable('code_coverage', $properties['version'])) {
     return array(FALSE, worker_log_last());
   }
 
@@ -89,11 +99,17 @@ function plumber_perform(array $properties) {
   $results = plumber_results($properties);
   $meta = plumber_meta($properties);
 
+  // Collect code coverage data if requested.
+  if ($properties['coverage']) {
+    $coverage = plumber_coverage($properties);
+  }
+
   // If there are no fails or exceptions then consider a pass.
   return array($results['#total'][1] + $results['#total'][2] == 0, array(
     'log' => $log,
     'result' => $results,
     'meta' => $meta,
+    'coverage' => (isset($coverage) ? $coverage : FALSE),
   ));
 }
 
@@ -366,4 +382,75 @@ function plumber_script() {
 
   // Generate required (and general) portion of run-tests.sh command.
   return "php scripts/run-tests.sh --php $php --url $url";
+}
+
+/**
+ * Export code coverage data.
+ *
+ * @param $properties
+ *   Associative array of properties defining the job.
+ * @return
+ *   An associative array containing arrays of file information each with the
+ *   following set of keys:
+ *     - path: the path to the file relative to the JOB_ROOT.
+ *     - executed: the number of line within the file that were executed.
+ *     - executable: the number of line within the file that are executable.
+ *     - data: a map of line number to TRUE for executed otherwise FALSE for
+ *         executable.
+ *     - file: (if chunk 0) contents of the file encoded in base64.
+ */
+function plumber_coverage(array $properties) {
+  worker_chdir();
+
+  worker_log('Export code coverage data.');
+
+  // Process coverage set 1 since the database will always start fresh, export
+  // the processed report, and load the JSON encoded coverage data.
+  worker_execute('drush code-coverage-process 1');
+  $directory = reset(worker_execute('drush code-coverage-export 1', TRUE));
+  $coverage = json_decode(file_get_contents($directory . '/coverage.json'), TRUE);
+
+  worker_log('> Code coverage data found for ' . number_format(count($coverage)) . ' files(s).');
+
+  // Since only one copy of the file contents is needed only include if chunk 0.
+  if ($properties['item']->data['delta'] == 0) {
+    worker_log('Process relevant files not included in coverage data.');
+
+    $paths = array();
+    foreach ($coverage as $key => $file) {
+      $paths[] = $file['path'];
+    }
+
+    // @TODO Limit the maximum number of files.
+    $log_file = JOB_ROOT . '/plumber_coverage.' . sha1(drupal_random_bytes(64));
+    $list = worker_file_list($properties);
+    $commands = array();
+    $count = count($paths);
+    foreach ($list as $path) {
+      if (!in_array($path, $paths)) {
+        $commands[$path] = 'drush code-coverage-executable --full ' . escapeshellarg($path) . ' >> ' . $log_file;
+      }
+    }
+
+    worker_log('> ' . number_format(count($commands)) . ' additional relevant files found.');
+
+    // Determine code coverage for additional files with a 1/10 of second sleep.
+    worker_execute_concurrent($commands, 1000000 / 10);
+
+    if (file_exists($log_file) && ($lines = file($log_file))) {
+      foreach ($lines as $line) {
+        if ($result = json_decode($line, TRUE)) {
+          $coverage[] = $result;
+        }
+      }
+    }
+
+    worker_log('Encode file data for all relevant files.');
+    foreach ($coverage as $key => &$file) {
+      $file['file'] = base64_encode(file_get_contents($file['path']));
+    }
+  }
+
+  chdir(DRUPAL_ROOT);
+  return $coverage;
 }
