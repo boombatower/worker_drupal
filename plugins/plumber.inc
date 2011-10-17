@@ -413,40 +413,54 @@ function plumber_coverage(array $properties) {
   worker_log('> Code coverage data found for ' . number_format(count($coverage)) . ' files(s).');
 
   // Since only one copy of the file contents is needed only include if chunk 0.
-  if ($properties['item']->data['delta'] == 0) {
-    worker_log('Process relevant files not included in coverage data.');
+  worker_log('Process relevant files not included in coverage data.');
 
-    $paths = array();
-    foreach ($coverage as $key => $file) {
-      $paths[] = $file['path'];
+  // Keep a list of the paths found in the original coverage report.
+  $paths = array();
+  foreach ($coverage as $key => $file) {
+    $paths[] = $file['path'];
+  }
+
+  // @TODO Limit the maximum number of files.
+  // Determine the relevant list of files and the number of files to be
+  // processed per chunk. Use ceiling to ensure that all the files are included.
+  $list = worker_file_list($properties);
+  $total = count($list);
+  $count = ceil($total / $properties['item']->data['count']);
+
+  // Slice the list of files to provide the set relevant to this chunk.
+  $list = array_slice($list, $count * $properties['item']->data['delta'], $count);
+  worker_log('> ' . number_format(count($list)) . ' of ' . number_format($total) . ' files to process during this chunk.');
+
+  // Generate commands to determine the number of executable lines for files not
+  // already covered in $coverage.
+  $log_file = JOB_ROOT . '/plumber_coverage.' . sha1(drupal_random_bytes(64));
+  $commands = array();
+  foreach ($list as $path) {
+    if (!in_array($path, $paths)) {
+      $commands[$path] = 'drush code-coverage-executable --full ' . escapeshellarg($path) . ' >> ' . $log_file;
     }
+  }
+  worker_log('> ' . number_format(count($commands)) . ' additional relevant files found.');
 
-    // @TODO Limit the maximum number of files.
-    $log_file = JOB_ROOT . '/plumber_coverage.' . sha1(drupal_random_bytes(64));
-    $list = worker_file_list($properties);
-    $commands = array();
-    $count = count($paths);
-    foreach ($list as $path) {
-      if (!in_array($path, $paths)) {
-        $commands[$path] = 'drush code-coverage-executable --full ' . escapeshellarg($path) . ' >> ' . $log_file;
+  // Determine code coverage for additional files with a 1/10 of second sleep.
+  worker_execute_concurrent($commands, 1000000 / 10);
+
+  // Load the log file, decode the JSON coverage data, and add the additional
+  // data to the coverage report.
+  if (file_exists($log_file) && ($lines = file($log_file))) {
+    foreach ($lines as $line) {
+      if ($result = json_decode($line, TRUE)) {
+        $coverage[] = $result;
       }
     }
+  }
 
-    worker_log('> ' . number_format(count($commands)) . ' additional relevant files found.');
-
-    // Determine code coverage for additional files with a 1/10 of second sleep.
-    worker_execute_concurrent($commands, 1000000 / 10);
-
-    if (file_exists($log_file) && ($lines = file($log_file))) {
-      foreach ($lines as $line) {
-        if ($result = json_decode($line, TRUE)) {
-          $coverage[] = $result;
-        }
-      }
-    }
-
-    worker_log('Encode file data for all relevant files.');
-    foreach ($coverage as $key => &$file) {
+  // Encode file data for files from the $list slice since each chunk will
+  // include the file data for its slice.
+  worker_log('Encode file data for all relevant files.');
+  foreach ($coverage as &$file) {
+    if (in_array($file['path'], $list)) {
       $file['file'] = base64_encode(file_get_contents($file['path']));
     }
   }
